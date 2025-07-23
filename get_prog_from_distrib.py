@@ -72,8 +72,11 @@ class CinemaClient:
             publicite=cells[8].text.strip()
         )
 
-    def parse_program_html(self, html_content: str) -> List[SemaineProgrammation]:  # Ajout de self
+    def parse_program_html(self, html_content: str) -> List[SemaineProgrammation]:
         """Parse le contenu HTML de la page de programmation"""
+        from datetime import datetime
+        import os
+        
         soup = BeautifulSoup(html_content, 'html.parser')
         program = []
 
@@ -87,6 +90,11 @@ class CinemaClient:
 
         for semaine in semaines:
             date_semaine = semaine.text.replace("Semaine du ", "")
+            
+            # Parser la date (format DD/MM/YYYY)
+            date_obj = datetime.strptime(date_semaine, "%d/%m/%Y")
+            annee = date_obj.strftime("%Y")
+            num_semaine = date_obj.strftime("%V")
 
             # Trouver le tableau qui suit directement cette semaine
             table = semaine.find_next('table')
@@ -98,6 +106,15 @@ class CinemaClient:
             for row in table.find_all('tr')[1:]:  # Skip header row
                 film = self.parse_film_row(row)  # Utilisation de self.parse_film_row
                 films.append(film)
+
+            # Créer le répertoire 'films' s'il n'existe pas
+            os.makedirs('films', exist_ok=True)
+            
+            # Sauvegarder les titres dans un fichier
+            filename = f"films/{annee}-S{num_semaine}.txt"
+            with open(filename, 'w', encoding='utf-8') as f:
+                for film in films:
+                    f.write(f"{film.titre}\n")
 
             program.append(SemaineProgrammation(
                 date=date_semaine,
@@ -131,6 +148,7 @@ class CinemaClient:
                 return program
             else:
                 print("Échec du parsing du programme")
+                return None
         else:
             print(f"Échec de la récupération du programme: {response.status_code}")
             return None
