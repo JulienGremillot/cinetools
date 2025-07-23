@@ -38,16 +38,23 @@ class CinemaClient:
         """Se connecte à l'espace adhérents"""
         login_data = {
             'login': os.getenv('CINEMA_LOGIN'),
-            'password': os.getenv('CINEMA_PASSWORD'),
-            # Ajoutez d'autres champs si nécessaire selon le formulaire
+            'mdp': os.getenv('CINEMA_PASSWORD'),  # le champ s'appelle 'mdp' et non 'password'
+            'sublogin': '1'  # champ caché nécessaire
         }
         
-        response = self.session.post(self.login_url, data=login_data)
+        # On fait d'abord une requête GET pour obtenir les éventuels cookies de session
+        self.session.get(self.login_url)
+        
+        # L'URL de connexion correcte est process.php
+        login_process_url = f"{self.base_url}/process.php"
+        response = self.session.post(login_process_url, data=login_data)
+        
         if response.ok:
             print("Connexion réussie")
             return True
         else:
             print(f"Échec de la connexion: {response.status_code}")
+            print(f"Contenu de la réponse: {response.text}")
             return False
 
     def parse_film_row(self, row):  # Ajout de self
