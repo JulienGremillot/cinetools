@@ -127,21 +127,41 @@ def make_carton_for_video(video_path, poster_path, titre):
 
 
 def process_all_videos():
-    video_files = glob.glob(os.path.join(PATH_VIDEOS, '*.mp4'))
+    from datetime import datetime, timedelta
 
-    if not video_files:
-        print("Aucune vidéo trouvée.")
-        return
+    processed = False
+    date_obj = datetime.today()
+    semaine_dir, videos_dir = get_videos_dir_from_date(date_obj)
 
-    for video_path in video_files:
-        base_name = os.path.splitext(os.path.basename(video_path))[0]
-        poster_path = os.path.join(PATH_POSTERS, base_name + '.jpg')
+    # On s'arrête dès qu'un sous-répertoire attendu n'existe pas
+    while os.path.isdir(videos_dir):
+        video_files = glob.glob(os.path.join(videos_dir, '*.mp4'))
 
-        if not os.path.exists(poster_path):
-            print(f"[!] Poster manquant pour : {base_name}, vidéo ignorée.")
-            continue
+        for video_path in video_files:
+            base_name = os.path.splitext(os.path.basename(video_path))[0]
+            poster_path = os.path.join(PATH_POSTERS, semaine_dir, base_name + '.jpg')
 
-        make_carton_for_video(video_path, poster_path, base_name)
+            if not os.path.exists(poster_path):
+                print(f"[!] Poster manquant pour : {base_name} (semaine {semaine_dir}), vidéo ignorée.")
+                continue
+
+            make_carton_for_video(video_path, poster_path, base_name)
+            processed = True
+
+        # Incrémenter d'une semaine
+        date_obj += timedelta(weeks=1)
+        semaine_dir, videos_dir = get_videos_dir_from_date(date_obj)
+
+    if not processed:
+        print("Aucune vidéo traitée.")
+
+
+def get_videos_dir_from_date(date_obj):
+    annee = date_obj.strftime("%Y")
+    num_semaine = date_obj.strftime("%V")
+    semaine_dir = f"{annee}-S{num_semaine}"
+    videos_dir = os.path.join(PATH_VIDEOS, semaine_dir)
+    return semaine_dir, videos_dir
 
 
 if __name__ == '__main__':
