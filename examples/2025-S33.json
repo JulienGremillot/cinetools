@@ -1,0 +1,32 @@
+[
+  {
+    "titre": "Les 4 Fantastiques : Premiers pas",
+    "url_poster": "https://www.cinema-paradiso.asso.fr/images/films/f769d6c32f0e8fed2e288bdf99062e47.jpg",
+    "seances": [
+      "2025-08-13T20:30:00",
+      "2025-08-16T20:30:00"
+    ]
+  },
+  {
+    "titre": "Enzo",
+    "url_poster": "https://www.cinema-paradiso.asso.fr/images/films/324bf1f23666e549b208319546c649ae.jpg",
+    "seances": [
+      "2025-08-14T20:30:00"
+    ]
+  },
+  {
+    "titre": "Marius Et Les Gardiens De La Cité Phocéenne",
+    "url_poster": "https://www.cinema-paradiso.asso.fr/images/films/b910ffb0f168384b77a8937822191439.jpg",
+    "seances": [
+      "2025-08-15T20:30:00",
+      "2025-08-17T20:30:00"
+    ]
+  },
+  {
+    "titre": "Renard et Lapine sauvent la forêt",
+    "url_poster": "https://www.cinema-paradiso.asso.fr/images/films/f9bd534721b77cfc541a2d6bfc9417f2.jpg",
+    "seances": [
+      "2025-08-17T10:30:00"
+    ]
+  }
+]

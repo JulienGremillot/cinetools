@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <title>Cinema Paradiso Nort sur Erdre</title>
+                    <link rel="stylesheet" href="/build/16.9e0cbc7e.css"><link rel="stylesheet" href="/build/app.edaa310f.css">
+            <style>
+                a,a:hover{
+                    color:  #8C0E23;
+                }
+                .carte a {
+                    background: url("/images/extlink.gif") no-repeat scroll right center transparent;
+                    padding-right: 15px;
+                    font-weight: bold;
+                }
+
+                .carte label {
+                    font-weight: bold;
+                    margin-bottom: 3px;
+                }
+
+                .carte form .col {
+                    padding-right: 5px;
+                }
+
+                .carte form select {
+                    min-width: 160px;
+                }
+
+                .carte form textarea {
+                    min-height: 150px;
+                }
+
+                /* Erreurs globales formulaire */
+                .carte form .invalid-feedback {
+                    font-weight: bold;
+                }
+
+                header {
+                    border-top-left-radius: 10px;
+                    border-top-right-radius: 10px;
+                }
+
+                .barre-logo {
+                    background: white;
+                }
+                .barre-contenu {
+                    background: white;
+                    min-height: 360px;
+                }
+                footer {
+                    background: url("/images/fd_pied.jpg") repeat-x scroll 0 22px white;
+                    border-bottom-left-radius: 10px;
+                    border-bottom-right-radius: 10px;
+                    position: relative;
+                    height: 130px;
+                    color: #438BB3;
+                }
+
+                footer > .container {
+                    padding-top: 60px;
+                }
+
+                .adresse {
+                    margin-left: 290px;
+                }
+
+                .logo {
+                    background: url(/images/logo.png) no-repeat;
+                    position: absolute;
+                    left: 9px;
+                }
+
+                .navbar {
+                    padding: 0;
+                }
+                .navbar-nav {
+                    bottom: -8px;
+
+                }
+                .navbar-nav .nav-link {
+                    padding-right: 15px;
+                    padding-left: 15px;
+                }
+
+                #bobine {
+                    position: absolute;
+                    top: -200px;
+                    pointer-events: none;
+                }
+                .carte {
+                    border-radius: 1rem!important;
+                    background-color: rgb(238, 238, 238);
+                    margin-right: 10px;
+                    margin-top: 10px;
+                    padding: 15px;
+                }
+
+                .carte h4 {
+                    border-bottom: 1px solid #E4E4E4;
+                    color: #8C0E23;
+                    font-weight: bold;
+                }
+
+                .carte h5 {
+                    border-bottom: 1px solid #E4E4E4;
+                    font-size: 1.1rem;
+                    color: #8C0E23;
+                    font-weight: bold;
+                }
+
+                .carte.semaine > div {
+                    border-top: 2px solid;
+                    border-color: rgb(220, 220, 220);;
+                }
+                .carte.semaine > div:first-child {
+                    border-top: none;
+                }
+                .carte.semaine > div:nth-child(even) {
+                    background-color: rgb(245, 245, 245);
+                }
+
+                .carte p {
+                    margin-bottom: 5px;
+                    text-align: justify;
+                }
+
+                .form-control, .form-select {
+                    font-size: 13px;
+                }
+
+                .ps-3 {
+                    padding-left: 1rem!important;
+                }
+
+                /* .rounded {
+                    } */
+
+                #tarifs {
+                    border-radius: 1rem!important;
+                    background-color: rgb(64, 163, 204);
+                    border-color: rgb(67, 139, 179)!important;
+                    border-width: 2px!important;
+                    color: white;
+                    margin-top: 10px;
+                    width: 150px;
+                }
+
+                .rsociaux {
+                    height: 35px;
+                    width: 35px;
+                    border: 1px;
+                    border-color: white;
+                }
+
+                #affiche {
+                    border-radius: 1rem!important;
+                    background-color: rgb(238, 238, 238);
+                    margin-right: 10px;
+                    margin-top: 10px;
+                    padding: 15px;
+                }
+
+                #affiche  #titre {
+                    background: url("/images/fd_bobine.jpg") repeat-x top transparent;
+                    height: 65px;
+                    margin-bottom: 6px;
+                    padding: 20px 0 0 20px;
+                    font-size: 22px;
+                    font-weight: bold;
+                }
+
+                .sortie-nationale {
+                    font-weight: bold;
+                }
+
+                .avant-premiere {
+                    font-weight: bold;
+                    color: red;
+                }
+
+                #programme .semaine {
+                    /* border-radius: 1rem!important;
+                    background-color: rgb(238, 238, 238); */
+                    margin-right: 10px;
+                    margin-top: 10px;
+                    padding: 15px;
+                }
+
+                #programme h5 {
+                    margin-bottom: 0px;
+                }
+
+                .semaine .description {
+                    margin-left: 0px;
+                    margin-bottom: 10px;
+                }
+
+                .titre-semaine {
+                    border-bottom: 1px solid #DDDDDD;
+                    font-size: 18px;
+                    font-weight: normal;
+                    margin-top: 10px;
+                    margin-bottom: 10px;
+                    text-align: right;
+                }
+
+                .film-message {
+                    background-image: url("/images/info.png");
+                    background-repeat: no-repeat;
+                    background-position: -4px -4px;
+                    background-color: white;
+                    min-height: 38px;
+                    padding-top: 5px;
+                    padding-left: 50px;
+                    padding-bottom: 5px;
+                    border: 1px solid #999999;
+                }
+
+                .film-detail {
+                    padding-right: 0px;
+                }
+                .film-detail div {
+                    margin-bottom: 5px;
+                }
+
+                .film-detail section p:first-child {
+                    font-size: 19px;
+                    font-weight: bold;
+                    border-bottom: 1px solid #E4E4E4;
+                    color: #8C0E23;
+                    margin-bottom: 5px;
+                }
+
+                .film-detail section p:last-child {
+                    margin-bottom: 5px;
+                }
+
+                .seances {
+                    background-color: #F7F7F7;
+                    padding-top: 5px;
+                    padding-left: 5px;
+                    border: 1px solid #999999;
+                }
+
+                .horaire.selected {
+                    font-weight: bold;
+                }
+
+                #modal-video .modal-dialog {
+                    max-width: 800px;
+                    margin: 30px auto;
+                }
+
+                #modal-video .modal-body {
+                    position:relative;
+                    padding:0px;
+                }
+
+                #modal-video .close {
+                    position:absolute;
+                    right:-30px;
+                    top:0;
+                    z-index:999;
+                    font-size:2rem;
+                    font-weight: normal;
+                    color:#fff;
+                    opacity:1;
+                }
+
+                #modal-film .modal-dialog {
+                    max-width: 800px;
+                    margin: 30px auto;
+                }
+
+                #modal-film .modal-body {
+                    position:relative;
+                    padding:0px;
+                }
+
+                #modal-film .close {
+                    position:absolute;
+                    right:-30px;
+                    top:0;
+                    z-index:999;
+                    font-size:2rem;
+                    font-weight: normal;
+                    color:#fff;
+                    opacity:1;
+                }
+
+                .btn-paradiso {
+                    color: #fff;
+                    background-color: rgb(64, 163, 204);
+                    border-color: rgb(67, 139, 179);
+                }
+
+                .badge-paradiso {
+                    color: #fff;
+                    background-color: rgb(64, 163, 204);
+                    border-color: rgb(67, 139, 179);
+                }
+
+                .btn-xs {
+                    padding: .25rem .4rem;
+                    font-size: .75rem;
+                    line-height: 1.5;
+                    border-radius: .2rem;
+                }
+
+                section {
+                    margin-bottom: 5px;
+                }
+            </style>
+            </head>
+    <body>
+        <div class="container mt-2">
+            <header class="navbar">
+    <nav class="container-lg flex-wrap flex-lg-nowrap">
+        <div class="row">
+            <div class="col-md-4">
+                <h1 id="ent_nom">Paradiso<br>
+                    <span><h3>Le cinéma de Nort sur Erdre</h3></span>
+                </h1>
+            </div>
+            <div class="col-md-8 menu">
+                <ul class="navbar-nav flex-row flex-wrap bd-navbar-nav position-absolute" style="right: -20px;" >
+                    <li id="menu-liste" class="nav-item rounded-top border border-bottom-0 mr-1">
+                        <a class="nav-link" href="/">A l'affiche</a>
+                    </li>
+                    <li id="menu-liste" class="nav-item rounded-top border border-bottom-0 mr-1">
+                        <a class="nav-link" href="/programme">Programme</a>
+                    </li><li id="menu-liste" class="nav-item rounded-top border border-bottom-0 mr-1">
+                        <a class="nav-link" href="/affiche/list">Vente d'affiches</a>
+                    </li><li id="menu-liste" class="nav-item rounded-top border border-bottom-0 mr-1">
+                        <a class="nav-link" href="/scolaires">Scolaires</a>
+                    </li><li id="menu-liste" class="nav-item rounded-top border border-bottom-0 mr-1">
+                        <a class="nav-link" href="/association">L'Association</a>
+                    </li>
+                    <li id="menu-liste" class="nav-item rounded-top border border-bottom-0 mr-1">
+                        <a class="nav-link" href="/contact">Contact</a>
+                    </li>
+                                    </ul>
+            </div>
+        </div>
+    </nav>
+</header>
+            <div class="barre-logo">
+                <div class="row">
+                    <div class="col text-right">
+                        <span class="logo"></span>
+                        <p class="etiquette text-end">Le programme</p>
+                        <img id="image-page" src="/images/bandeaux/programme.jpg">
+                    </div>
+                </div>
+            </div>            <div class="barre-contenu">
+                <div class="row">
+                    <div class="col pr-0" style="max-width: 160px; width: 160px;">
+                        <div id="tarifs" class="border rounded ml-1"><div class="mt-3 mb-2 text-center"><a class="nav-link" style="color: white;" href="/affiche/">Vente d'affiches</a></div>
+    <hr/><div class="mt-3 mb-2 text-center">Tarifs*</div>
+    <div class="row">
+        <div class="col ml-1 mr-0 pr-0">La place</div><div class="col text-right mr-1">5.50 €</div>
+    </div>
+    <div class="row">
+        <div class="col ml-1 mr-0 pr-0">10 places</div><div class="col text-right mr-1">47.00 €</div>
+    </div>
+    <div class="row">
+        <div class="col ml-1 mr-0 pr-0" style="min-width: 100px;">Lunettes 3D*</div><div class="col text-right mr-1 ml-0 pl-0">1.50 €</div>
+    </div>
+    <hr/>
+    <div class="mt-3 mb-2 text-center">Réseaux sociaux</div>
+    <div class="row mb-2">
+        <div class="col ml-1 mr-0 pr-0 text-center"><a href="https://www.facebook.com/CinemaNort" target="_blank"><img class="rsociaux" src="/images/logo-facebook.png"></a></div>
+        <div class="col ml-1 mr-0 pl-1 text-center"><a href="https://www.instagram.com/CinemaNort" target="_blank"><img class="rsociaux" src="/images/logo-insta.png"></a></div>
+    </div>
+    <hr/>
+    <div class="row mb-2">
+        <div class="col ml-1 mr-0 text-center"><a href="/legal" style="color: white">mentions légales</a></div>
+    </div>
+</div>
+
+                    </div>
+                    <div class="col">
+                <div id="programme"><section>
+        <p class="titre-semaine">Semaine du 13 août 2025 au 19 août 2025
+        <div class="carte semaine">            <div class="row mb-2">
+                <div class="col">
+                    <div class="row mb-2">
+                        <div class="col">
+                            <h5>Les 4 Fantastiques : Premiers pas
+                                    
+                        </h5>
+                        </div>
+                    </div>
+                    <div class="row description">
+                        <div class="col"><div class="row text-center mb-2">
+                                <div class="col">
+                                                                        <a type="button" class="video-btn" data-toggle="modal" data-src="https://player.allocine.fr/20622634.html" data-target="#modal-video">
+                                        Bande annonce
+                                    </a>
+                                </div>
+                                <div class="col">
+                                                                        <a type="button" class="film-btn" data-toggle="modal" data-src="/ajax/film/4458" data-target="#modal-film">
+                                        Fiche film
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col seances"><div class="horaire mb-2  selected">
+                                        mercredi 13 août 2025   20h30<span class="badge badge-paradiso ml-2">Prochaine séance</span></div><div class="horaire mb-2 ">
+                                        samedi 16 août 2025   20h30</div></div>
+                            </div>
+                        </div>
+                        <div class="col" style="max-width: 100px;">
+                            <img class="film-btn" src="/images/films/f769d6c32f0e8fed2e288bdf99062e47.jpg" width="83" height="108" data-toggle="modal" data-src="/ajax/film/4458" data-target="#modal-film">
+                        </div>
+                    </div>
+                </div>
+            </div>            <div class="row mb-2">
+                <div class="col">
+                    <div class="row mb-2">
+                        <div class="col">
+                            <h5>Enzo
+                                    
+                        </h5>
+                        </div>
+                    </div>
+                    <div class="row description">
+                        <div class="col"><div class="row text-center mb-2">
+                                <div class="col">
+                                                                        <a type="button" class="video-btn" data-toggle="modal" data-src="https://player.allocine.fr/20620782.html" data-target="#modal-video">
+                                        Bande annonce
+                                    </a>
+                                </div>
+                                <div class="col">
+                                                                        <a type="button" class="film-btn" data-toggle="modal" data-src="/ajax/film/4460" data-target="#modal-film">
+                                        Fiche film
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col seances"><div class="horaire mb-2 ">
+                                        jeudi 14 août 2025   20h30</div></div>
+                            </div>
+                        </div>
+                        <div class="col" style="max-width: 100px;">
+                            <img class="film-btn" src="/images/films/324bf1f23666e549b208319546c649ae.jpg" width="83" height="108" data-toggle="modal" data-src="/ajax/film/4460" data-target="#modal-film">
+                        </div>
+                    </div>
+                </div>
+            </div>            <div class="row mb-2">
+                <div class="col">
+                    <div class="row mb-2">
+                        <div class="col">
+                            <h5>Marius Et Les Gardiens De La Cité Phocéenne
+                                    
+                        </h5>
+                        </div>
+                    </div>
+                    <div class="row description">
+                        <div class="col"><div class="row text-center mb-2">
+                                <div class="col">
+                                                                        <a type="button" class="video-btn" data-toggle="modal" data-src="https://player.allocine.fr/20619226.html" data-target="#modal-video">
+                                        Bande annonce
+                                    </a>
+                                </div>
+                                <div class="col">
+                                                                        <a type="button" class="film-btn" data-toggle="modal" data-src="/ajax/film/4461" data-target="#modal-film">
+                                        Fiche film
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col seances"><div class="horaire mb-2 ">
+                                        vendredi 15 août 2025   20h30</div><div class="horaire mb-2 ">
+                                        dimanche 17 août 2025   20h30</div></div>
+                            </div>
+                        </div>
+                        <div class="col" style="max-width: 100px;">
+                            <img class="film-btn" src="/images/films/b910ffb0f168384b77a8937822191439.jpg" width="83" height="108" data-toggle="modal" data-src="/ajax/film/4461" data-target="#modal-film">
+                        </div>
+                    </div>
+                </div>
+            </div>            <div class="row mb-2">
+                <div class="col">
+                    <div class="row mb-2">
+                        <div class="col">
+                            <h5>Renard et Lapine sauvent la forêt
+                                    
+                        </h5>
+                        </div>
+                    </div>
+                    <div class="row description">
+                        <div class="col"><div class="row text-center mb-2">
+                                <div class="col">
+                                                                        <a type="button" class="video-btn" data-toggle="modal" data-src="https://player.allocine.fr/20621682.html" data-target="#modal-video">
+                                        Bande annonce
+                                    </a>
+                                </div>
+                                <div class="col">
+                                                                        <a type="button" class="film-btn" data-toggle="modal" data-src="/ajax/film/4463" data-target="#modal-film">
+                                        Fiche film
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col seances"><div class="horaire mb-2 ">
+                                        dimanche 17 août 2025   10h30</div></div>
+                            </div>
+                        </div>
+                        <div class="col" style="max-width: 100px;">
+                            <img class="film-btn" src="/images/films/f9bd534721b77cfc541a2d6bfc9417f2.jpg" width="83" height="108" data-toggle="modal" data-src="/ajax/film/4463" data-target="#modal-film">
+                        </div>
+                    </div>
+                </div>
+            </div></div>
+    </section><section>
+        <p class="titre-semaine">Semaine du 20 août 2025 au 26 août 2025
+        <div class="carte semaine">            <div class="row mb-2">
+                <div class="col">
+                    <div class="row mb-2">
+                        <div class="col">
+                            <h5>Dracula
+                                    
+                        </h5>
+                        </div>
+                    </div>
+                    <div class="row description">
+                        <div class="col"><div class="row text-center mb-2">
+                                <div class="col">
+                                                                        <a type="button" class="video-btn" data-toggle="modal" data-src="https://player.allocine.fr/20621882.html" data-target="#modal-video">
+                                        Bande annonce
+                                    </a>
+                                </div>
+                                <div class="col">
+                                                                        <a type="button" class="film-btn" data-toggle="modal" data-src="/ajax/film/4464" data-target="#modal-film">
+                                        Fiche film
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col seances"><div class="horaire mb-2 ">
+                                        mercredi 20 août 2025   20h30</div><div class="horaire mb-2 ">
+                                        vendredi 22 août 2025   20h30</div></div>
+                            </div>
+                        </div>
+                        <div class="col" style="max-width: 100px;">
+                            <img class="film-btn" src="/images/films/d6689e7ddcc5b1247c7fe6f73bf39249.jpg" width="83" height="108" data-toggle="modal" data-src="/ajax/film/4464" data-target="#modal-film">
+                        </div>
+                    </div>
+                </div>
+            </div>            <div class="row mb-2">
+                <div class="col">
+                    <div class="row mb-2">
+                        <div class="col">
+                            <h5>Aux jours qui viennent
+                                    
+                        </h5>
+                        </div>
+                    </div>
+                    <div class="row description">
+                        <div class="col"><div class="row text-center mb-2">
+                                <div class="col">
+                                                                        <a type="button" class="video-btn" data-toggle="modal" data-src="https://player.allocine.fr/20622223.html" data-target="#modal-video">
+                                        Bande annonce
+                                    </a>
+                                </div>
+                                <div class="col">
+                                                                        <a type="button" class="film-btn" data-toggle="modal" data-src="/ajax/film/4466" data-target="#modal-film">
+                                        Fiche film
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col seances"><div class="horaire mb-2 ">
+                                        jeudi 21 août 2025   20h30</div><div class="horaire mb-2 ">
+                                        dimanche 24 août 2025   20h30</div></div>
+                            </div>
+                        </div>
+                        <div class="col" style="max-width: 100px;">
+                            <img class="film-btn" src="/images/films/24a34f6cacca6a51d5d4211ff9f58023.jpg" width="83" height="108" data-toggle="modal" data-src="/ajax/film/4466" data-target="#modal-film">
+                        </div>
+                    </div>
+                </div>
+            </div>            <div class="row mb-2">
+                <div class="col">
+                    <div class="row mb-2">
+                        <div class="col">
+                            <h5>Les Bad Guys 2
+                                    
+                        </h5>
+                        </div>
+                    </div>
+                    <div class="row description">
+                        <div class="col"><div class="row text-center mb-2">
+                                <div class="col">
+                                                                        <a type="button" class="video-btn" data-toggle="modal" data-src="https://player.allocine.fr/20612592.html" data-target="#modal-video">
+                                        Bande annonce
+                                    </a>
+                                </div>
+                                <div class="col">
+                                                                        <a type="button" class="film-btn" data-toggle="modal" data-src="/ajax/film/4468" data-target="#modal-film">
+                                        Fiche film
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col seances"><div class="horaire mb-2 ">
+                                        samedi 23 août 2025   20h30</div><div class="horaire mb-2 ">
+                                        dimanche 24 août 2025   10h30</div></div>
+                            </div>
+                        </div>
+                        <div class="col" style="max-width: 100px;">
+                            <img class="film-btn" src="/images/films/d3d32a7b6afa647739e03e6c3646ccd5.jpg" width="83" height="108" data-toggle="modal" data-src="/ajax/film/4468" data-target="#modal-film">
+                        </div>
+                    </div>
+                </div>
+            </div></div>
+    </section><section>
+        <p class="titre-semaine">Semaine du 27 août 2025 au 02 septembre 2025
+        <div class="carte semaine">            <div class="row mb-2">
+                <div class="col">
+                    <div class="row mb-2">
+                        <div class="col">
+                            <h5>Freaky Friday 2 : Encore dans la peau de ma mère
+                                    
+                        </h5>
+                        </div>
+                    </div>
+                    <div class="row description">
+                        <div class="col"><div class="row text-center mb-2">
+                                <div class="col">
+                                                                        <a type="button" class="video-btn" data-toggle="modal" data-src="https://player.allocine.fr/20621887.html" data-target="#modal-video">
+                                        Bande annonce
+                                    </a>
+                                </div>
+                                <div class="col">
+                                                                        <a type="button" class="film-btn" data-toggle="modal" data-src="/ajax/film/4470" data-target="#modal-film">
+                                        Fiche film
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col seances"><div class="horaire mb-2 ">
+                                        mercredi 27 août 2025   20h30</div><div class="horaire mb-2 ">
+                                        vendredi 29 août 2025   20h30</div></div>
+                            </div>
+                        </div>
+                        <div class="col" style="max-width: 100px;">
+                            <img class="film-btn" src="/images/films/fd294077110a6d905cf6e3961f8c209f.jpg" width="83" height="108" data-toggle="modal" data-src="/ajax/film/4470" data-target="#modal-film">
+                        </div>
+                    </div>
+                </div>
+            </div>            <div class="row mb-2">
+                <div class="col">
+                    <div class="row mb-2">
+                        <div class="col">
+                            <h5>Eddington
+                                    
+                        </h5>
+                        </div>
+                    </div>
+                    <div class="row description">
+                        <div class="col"><div class="row text-center mb-2">
+                                <div class="col">
+                                                                        <a type="button" class="video-btn" data-toggle="modal" data-src="https://player.allocine.fr/20621964.html" data-target="#modal-video">
+                                        Bande annonce
+                                    </a>
+                                </div>
+                                <div class="col">
+                                                                        <a type="button" class="film-btn" data-toggle="modal" data-src="/ajax/film/4472" data-target="#modal-film">
+                                        Fiche film
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col seances"><div class="horaire mb-2 ">
+                                        jeudi 28 août 2025   20h30<span class="badge badge-dark ml-2">VO</span></div></div>
+                            </div>
+                        </div>
+                        <div class="col" style="max-width: 100px;">
+                            <img class="film-btn" src="/images/films/ba6ef5ffa6a8a65915936db1ce5b3838.jpg" width="83" height="108" data-toggle="modal" data-src="/ajax/film/4472" data-target="#modal-film">
+                        </div>
+                    </div>
+                </div>
+            </div>            <div class="row mb-2">
+                <div class="col">
+                    <div class="row mb-2">
+                        <div class="col">
+                            <h5>Y a pas de réseau
+                                    
+                        </h5>
+                        </div>
+                    </div>
+                    <div class="row description">
+                        <div class="col"><div class="row text-center mb-2">
+                                <div class="col">
+                                                                        <a type="button" class="video-btn" data-toggle="modal" data-src="https://player.allocine.fr/20621651.html" data-target="#modal-video">
+                                        Bande annonce
+                                    </a>
+                                </div>
+                                <div class="col">
+                                                                        <a type="button" class="film-btn" data-toggle="modal" data-src="/ajax/film/4473" data-target="#modal-film">
+                                        Fiche film
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col seances"><div class="horaire mb-2 ">
+                                        samedi 30 août 2025   20h30</div><div class="horaire mb-2 ">
+                                        dimanche 31 août 2025   20h30</div></div>
+                            </div>
+                        </div>
+                        <div class="col" style="max-width: 100px;">
+                            <img class="film-btn" src="/images/films/911049e0f16d9666f9b94c2e16ab2652.jpg" width="83" height="108" data-toggle="modal" data-src="/ajax/film/4473" data-target="#modal-film">
+                        </div>
+                    </div>
+                </div>
+            </div>            <div class="row mb-2">
+                <div class="col">
+                    <div class="row mb-2">
+                        <div class="col">
+                            <h5>Buffalo Kids
+                                    
+                        </h5>
+                        </div>
+                    </div>
+                    <div class="row description">
+                        <div class="col"><div class="row text-center mb-2">
+                                <div class="col">
+                                                                        <a type="button" class="video-btn" data-toggle="modal" data-src="https://player.allocine.fr/20618966.html" data-target="#modal-video">
+                                        Bande annonce
+                                    </a>
+                                </div>
+                                <div class="col">
+                                                                        <a type="button" class="film-btn" data-toggle="modal" data-src="/ajax/film/4475" data-target="#modal-film">
+                                        Fiche film
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col seances"><div class="horaire mb-2 ">
+                                        dimanche 31 août 2025   10h30</div><div class="horaire mb-2 ">
+                                        dimanche 31 août 2025   10h30</div></div>
+                            </div>
+                        </div>
+                        <div class="col" style="max-width: 100px;">
+                            <img class="film-btn" src="/images/films/d48ab0842f58918f066d8881d5c64e97.jpg" width="83" height="108" data-toggle="modal" data-src="/ajax/film/4475" data-target="#modal-film">
+                        </div>
+                    </div>
+                </div>
+            </div></div>
+    </section></div>
+                    </div>
+                </div>
+            </div>
+            <footer>
+                <img id="bobine" src="/images/bobine.png">
+                <div class="container">
+                    <div class="row">
+                        <div class="col adresse">
+                        </div>
+                        <div class="col text-right mr-5">
+                            <strong>Cinéma Paradiso</strong><br/>
+                            Boulevard de la Gare<br/>
+                            44390 Nort-sur-Erdre
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>
+        <div class="modal fade" id="modal-video" tabindex="-1" role="dialog" aria-labelledby="Video" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-body">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>        
+                <!-- 16:9 aspect ratio -->
+                <div class="embed-responsive embed-responsive-16by9">
+                    <iframe class="embed-responsive-item" src="" id="video-frame" allowscriptaccess="always" allow="autoplay" allowfullscreen></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-film" tabindex="-1" role="dialog" aria-labelledby="Film" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-body">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>        
+                <div id="film-view" class="embed-responsive">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+                    <script src="/build/runtime.24c34160.js"></script><script src="/build/16.558ab486.js"></script><script src="/build/app.67a6c901.js"></script>
+            <script>
+///                $(document).ready(function() {
+                    //                    $(".selected-menu").addClass(["border", "border-bottom-0"]);
+//                }); 
+            </script>
+        
+<script>
+$(document).ready(function() {
+    var $videoSrc;  
+    $('.video-btn').click(function() {
+        $videoSrc = $(this).data( "src" );
+    });
+
+    $('#modal-video').on('shown.bs.modal', function (e) {
+        $("#video-frame").attr('src',$videoSrc);
+    })
+    // stop playing the video when I close the modal
+    $('#modal-video').on('hide.bs.modal', function (e) {
+        $("#video-frame").attr('src',''); 
+    })
+
+    $('.film-btn').click(function() {
+        $.ajax({
+            url: $(this).data( "src" ),
+            success: function(data) {
+                $('#film-view').html(data);
+            },
+        });
+    });
+
+    // $('#modal-film').on('shown.bs.modal', function (e) {
+    //     // $("#video-frame").attr('src',$videoSrc);
+    // })
+
+    // // stop playing the video when I close the modal
+    // $('#modal-film').on('hide.bs.modal', function (e) {
+    //     // $("#video-frame").attr('src',''); 
+    // })
+});
+</script>
+    </body>
+</html>
