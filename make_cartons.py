@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-
+# ... imports existants ...
 import os
 import glob
 import cv2
@@ -26,6 +26,7 @@ ADD_CARTON_CMD = (
     "-c:v libx264 -c:a aac -strict -2 -map \"[v]\" -map \"[a]\" \"{2}\""
 )
 
+# --- fonctions existantes ---
 
 def clean_title(titre):
     return titre.replace("'", " ").replace("?", "").replace(":", "-").replace("\n", " ")
@@ -223,9 +224,75 @@ def find_best_poster_path(semaine_dir: str, video_base_name: str):
             best_score = score
             best_path = poster_path
 
-    # Seuil de confiance: ajustable selon vos données (0.55 marche bien en général)
     return best_path if best_path and best_score >= 0.55 else None
 
+
+# --- récupérer le titre depuis le fichier de séance en fonction du poster ---
+
+def _get_title_from_seance_by_poster(semaine_dir: str, poster_path: str):
+    """
+    Ouvre seances/<semaine_dir>.json, cherche l'objet dont l'attribut 'file_poster'
+    correspond au nom du poster (avec ou sans extension, insensible à la casse),
+    et renvoie son titre (champs acceptés: 'title', 'titre', 'name', 'nom').
+    Retourne None si non trouvé ou si le fichier n'existe pas.
+    """
+    import json
+
+    seance_file = os.path.join('seances', f'{semaine_dir}.json')
+    if not os.path.isfile(seance_file):
+        return None
+
+    try:
+        with open(seance_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except Exception as e:
+        print(f"[!] Impossible de lire {seance_file}: {e}")
+        return None
+
+    def norm_filename(name: str) -> str:
+        return os.path.splitext(os.path.basename(str(name)))[0].lower().strip()
+
+    target = norm_filename(poster_path)
+
+    def iter_items(d):
+        if isinstance(d, list):
+            for it in d:
+                yield it
+        elif isinstance(d, dict):
+            # Listes possibles dans différents champs
+            for key in ('films', 'seances', 'items', 'programme', 'program'):
+                lst = d.get(key)
+                if isinstance(lst, list):
+                    for it in lst:
+                        yield it
+            # Cas dict d'objets
+            for v in d.values():
+                if isinstance(v, dict) and any(k in v for k in ('file_poster', 'title', 'titre')):
+                    yield v
+
+    for item in iter_items(data):
+        if not isinstance(item, dict):
+            continue
+        poster_candidate = (
+            item.get('file_poster') or
+            item.get('poster_file') or
+            item.get('poster') or
+            item.get('filePoster')
+        )
+        if not poster_candidate:
+            continue
+        if norm_filename(poster_candidate) != target:
+            continue
+
+        for title_key in ('title', 'titre', 'name', 'nom'):
+            title_val = item.get(title_key)
+            if isinstance(title_val, str) and title_val.strip():
+                return title_val.strip()
+
+    return None
+
+
+# --- process_all_videos: utilise maintenant le titre du fichier de séance comme base_name ---
 
 def process_all_videos():
     from datetime import datetime, timedelta
@@ -242,24 +309,30 @@ def process_all_videos():
 
         videos_dir = os.path.join(PATH_VIDEOS, semaine_dir)
         if not os.path.isdir(videos_dir):
-            # On s'arrête dès qu'un sous-répertoire attendu n'existe pas
             break
 
         video_files = glob.glob(os.path.join(videos_dir, "*.mp4"))
 
         for video_path in video_files:
-            base_name = os.path.splitext(os.path.basename(video_path))[0]
-            poster_path = find_best_poster_path(semaine_dir, base_name)
+            video_base_name = os.path.splitext(os.path.basename(video_path))[0]
+            poster_path = find_best_poster_path(semaine_dir, video_base_name)
 
             if not poster_path:
-                print(f"[!] Poster manquant pour : {base_name} (semaine {semaine_dir}), vidéo ignorée.")
+                print(f"[!] Poster manquant pour : {video_base_name} (semaine {semaine_dir}), vidéo ignorée.")
                 continue
 
-            print(f"[OK] Poster associé: {base_name} -> {os.path.basename(poster_path)} (semaine {semaine_dir})")
-            make_carton_for_video(video_path, poster_path, base_name)
+            # Récupère le titre depuis seances/<semaine_dir>.json en se basant sur le fichier poster
+            seance_title = _get_title_from_seance_by_poster(semaine_dir, os.path.basename(poster_path))
+            titre_final = seance_title if seance_title else video_base_name
+
+            if seance_title:
+                print(f"[OK] Poster associé: {video_base_name} -> {os.path.basename(poster_path)} ; titre séance: \"{seance_title}\"")
+            else:
+                print(f"[OK] Poster associé: {video_base_name} -> {os.path.basename(poster_path)} ; titre séance introuvable, on garde \"{video_base_name}\"")
+
+            make_carton_for_video(video_path, poster_path, titre_final)
             processed = True
 
-        # Incrémenter d'une semaine
         date_obj += timedelta(weeks=1)
 
     if not processed:
