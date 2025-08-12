@@ -164,5 +164,107 @@ def get_videos_dir_from_date(date_obj):
     return semaine_dir, videos_dir
 
 
+def _strip_accents(text: str) -> str:
+    import unicodedata
+    return "".join(ch for ch in unicodedata.normalize("NFD", text) if unicodedata.category(ch) != "Mn")
+
+
+def _normalize_title(text: str) -> str:
+    import os
+    import re
+    if not text:
+        return ""
+    # Retirer extension éventuelle et remplacer les underscores
+    text = os.path.splitext(text)[0].replace("_", " ")
+    # Retirer les contenus entre parenthèses (souvent des mentions annexes)
+    text = re.sub(r"\(.*?\)", " ", text)
+    # Minuscules et suppression des accents
+    text = _strip_accents(text.lower())
+    # Garder que lettres/chiffres/espaces
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    # Espaces normalisés
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _score_similarity(a: str, b: str) -> float:
+    from difflib import SequenceMatcher
+    a = a.strip()
+    b = b.strip()
+    if not a or not b:
+        return 0.0
+    ratio = SequenceMatcher(None, a, b).ratio()
+    tokens_a = set(a.split())
+    tokens_b = set(b.split())
+    jaccard = (len(tokens_a & tokens_b) / len(tokens_a | tokens_b)) if (tokens_a or tokens_b) else 0.0
+    # Pondération: séquence 60% + Jaccard 40%
+    return 0.6 * ratio + 0.4 * jaccard
+
+
+def find_best_poster_path(semaine_dir: str, video_base_name: str):
+    import os
+    import glob
+    posters_dir = os.path.join(PATH_POSTERS, semaine_dir)
+    if not os.path.isdir(posters_dir):
+        return None
+
+    candidates = glob.glob(os.path.join(posters_dir, "*.jpg"))
+    if not candidates:
+        return None
+
+    target_norm = _normalize_title(video_base_name)
+    best_path = None
+    best_score = 0.0
+    for poster_path in candidates:
+        poster_name = os.path.splitext(os.path.basename(poster_path))[0]
+        poster_norm = _normalize_title(poster_name)
+        score = _score_similarity(target_norm, poster_norm)
+        if score > best_score:
+            best_score = score
+            best_path = poster_path
+
+    # Seuil de confiance: ajustable selon vos données (0.55 marche bien en général)
+    return best_path if best_path and best_score >= 0.55 else None
+
+
+def process_all_videos():
+    from datetime import datetime, timedelta
+    import os
+    import glob
+
+    processed = False
+    date_obj = datetime.today()
+
+    while True:
+        annee = date_obj.strftime("%Y")
+        num_semaine = date_obj.strftime("%V")
+        semaine_dir = f"{annee}-S{num_semaine}"
+
+        videos_dir = os.path.join(PATH_VIDEOS, semaine_dir)
+        if not os.path.isdir(videos_dir):
+            # On s'arrête dès qu'un sous-répertoire attendu n'existe pas
+            break
+
+        video_files = glob.glob(os.path.join(videos_dir, "*.mp4"))
+
+        for video_path in video_files:
+            base_name = os.path.splitext(os.path.basename(video_path))[0]
+            poster_path = find_best_poster_path(semaine_dir, base_name)
+
+            if not poster_path:
+                print(f"[!] Poster manquant pour : {base_name} (semaine {semaine_dir}), vidéo ignorée.")
+                continue
+
+            print(f"[OK] Poster associé: {base_name} -> {os.path.basename(poster_path)} (semaine {semaine_dir})")
+            make_carton_for_video(video_path, poster_path, base_name)
+            processed = True
+
+        # Incrémenter d'une semaine
+        date_obj += timedelta(weeks=1)
+
+    if not processed:
+        print("Aucune vidéo trouvée.")
+
+
 if __name__ == '__main__':
     process_all_videos()
