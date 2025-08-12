@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 # ... imports existants ...
 import os
-import glob
+import json
+from pathlib import Path
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
@@ -125,36 +126,6 @@ def make_carton_for_video(video_path, poster_path, titre):
     output_video = video_path.replace('.mp4', '_new.mp4')
     cmd = ADD_CARTON_CMD.format(video_path, carton_file, output_video)
     print("Commande ffmpeg :", cmd)
-
-
-def process_all_videos():
-    from datetime import datetime, timedelta
-
-    processed = False
-    date_obj = datetime.today()
-    semaine_dir, videos_dir = get_videos_dir_from_date(date_obj)
-
-    # On s'arrête dès qu'un sous-répertoire attendu n'existe pas
-    while os.path.isdir(videos_dir):
-        video_files = glob.glob(os.path.join(videos_dir, '*.mp4'))
-
-        for video_path in video_files:
-            base_name = os.path.splitext(os.path.basename(video_path))[0]
-            poster_path = os.path.join(PATH_POSTERS, semaine_dir, base_name + '.jpg')
-
-            if not os.path.exists(poster_path):
-                print(f"[!] Poster manquant pour : {base_name} (semaine {semaine_dir}), vidéo ignorée.")
-                continue
-
-            make_carton_for_video(video_path, poster_path, base_name)
-            processed = True
-
-        # Incrémenter d'une semaine
-        date_obj += timedelta(weeks=1)
-        semaine_dir, videos_dir = get_videos_dir_from_date(date_obj)
-
-    if not processed:
-        print("Aucune vidéo traitée.")
 
 
 def get_videos_dir_from_date(date_obj):
@@ -294,6 +265,74 @@ def _get_title_from_seance_by_poster(semaine_dir: str, poster_path: str):
 
 # --- process_all_videos: utilise maintenant le titre du fichier de séance comme base_name ---
 
+# -----------------------------------------------------------
+# Nouveau: mise à jour du fichier seances/<semaine_dir>.json
+# -----------------------------------------------------------
+
+def _update_seances_json(semaine_dir: str, updates: list[dict]) -> None:
+    """
+    Met à jour seances/<semaine_dir>.json en ajoutant pour chaque film
+    les champs 'file_bandeannonce' et 'file_carton'.
+
+    Paramètres:
+      - semaine_dir: ex. "2025-S35"
+      - updates: liste de dicts du type:
+          {
+            "titre": "<Titre séance>",
+            "file_bandeannonce": "<chemin absolu vers la BA utilisée>",
+            "file_carton": "<chemin absolu vers le carton .png généré>"
+          }
+    """
+    json_path = Path("seances") / f"{semaine_dir}.json"
+    try:
+        with json_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+            if not isinstance(data, list):
+                print(f"[WARN] Contenu inattendu dans {json_path}, remplacement par une liste.")
+                data = []
+    except FileNotFoundError:
+        print(f"[WARN] Fichier non trouvé: {json_path}. Création d'un nouveau.")
+        data = []
+
+    # Indexer par titre pour mise à jour rapide
+    by_title: dict[str, dict] = {}
+    order: list[str] = []
+    for item in data:
+        if isinstance(item, dict):
+            t = item.get("titre")
+            if t is not None:
+                by_title[t] = item
+                order.append(t)
+
+    # Appliquer les mises à jour
+    for upd in updates:
+        titre = upd["titre"]
+        ba = upd["file_bandeannonce"]
+        carton = upd["file_carton"]
+        if titre in by_title:
+            by_title[titre]["file_bandeannonce"] = ba
+            by_title[titre]["file_carton"] = carton
+        else:
+            # Titre absent: on l'ajoute avec un minimum d'infos
+            by_title[titre] = {
+                "titre": titre,
+                "seances": [],
+                "file_bandeannonce": ba,
+                "file_carton": carton,
+            }
+            order.append(titre)
+
+    # Reconstruire la liste dans l'ordre d'origine + nouveaux à la fin
+    new_list = [by_title[t] for t in order]
+
+    with json_path.open("w", encoding="utf-8") as f:
+        json.dump(new_list, f, ensure_ascii=False, indent=2)
+    print(f"[OK] Mise à jour des chemins dans {json_path}")
+
+# ----------------------------------------------------------------
+# Dans votre logique principale, pendant le traitement d’une semaine
+# ----------------------------------------------------------------
+
 def process_all_videos():
     from datetime import datetime, timedelta
     import os
@@ -312,6 +351,9 @@ def process_all_videos():
             break
 
         video_files = glob.glob(os.path.join(videos_dir, "*.mp4"))
+
+        # ... au début du traitement de la semaine, juste avant la boucle sur les BAs :
+        updates_for_json: list[dict] = []
 
         for video_path in video_files:
             video_base_name = os.path.splitext(os.path.basename(video_path))[0]
@@ -332,6 +374,24 @@ def process_all_videos():
 
             make_carton_for_video(video_path, poster_path, titre_final)
             processed = True
+
+            # ... dans la boucle où vous traitez chaque bande-annonce et générez le carton:
+            # Supposons que vous disposiez déjà de:
+            # - semaine_dir: str (ex. "2025-S35")
+            # - seance_title: str (le titre exact de la séance)
+            # - ba_input_path: str ou Path (chemin vers la bande-annonce en entrée)
+            # - carton_png_path: str ou Path (chemin du .png généré pour ce film)
+
+            # Après avoir déterminé ces chemins et généré le carton, ajoutez:
+            carton_png_path = os.path.join(PATH_CARTONS, clean_title(titre_final) + '.png')  # deduit le chemin du carton
+            updates_for_json.append({
+                "titre": seance_title,
+                "file_bandeannonce": str(Path(video_path).resolve()),
+                "file_carton": str(Path(carton_png_path).resolve()),
+            })
+
+        # ... après avoir terminé la boucle de traitement de toutes les BAs de la semaine :
+        _update_seances_json(semaine_dir, updates_for_json)
 
         date_obj += timedelta(weeks=1)
 
