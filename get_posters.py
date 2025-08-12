@@ -109,6 +109,7 @@ def download_poster(url: str, dest_path: Path, session: Optional[requests.Sessio
 def process_json_file(json_path: Path, posters_root: Path, session: requests.Session) -> None:
     """
     Lit un fichier JSON et télécharge les posters dans posters_root/<nom_json_sans_ext>/.
+    Ajoute pour chaque objet un attribut "file_poster" pointant vers le chemin local du fichier.
     """
     subdir = posters_root / json_path.stem
     subdir.mkdir(parents=True, exist_ok=True)
@@ -123,6 +124,8 @@ def process_json_file(json_path: Path, posters_root: Path, session: requests.Ses
     if not isinstance(data, list):
         print(f"[AVERTISSEMENT] Le JSON racine de {json_path.name} n'est pas un tableau. Ignoré.", file=sys.stderr)
         return
+
+    changed = False
 
     for idx, item in enumerate(data, start=1):
         if not isinstance(item, dict):
@@ -142,22 +145,37 @@ def process_json_file(json_path: Path, posters_root: Path, session: requests.Ses
         ext = extension_from_url(url)
         dest = subdir / f"{safe_name}{ext}"
 
-        # Si un fichier avec le même nom existe, on saute (déjà téléchargé)
-        if dest.exists():
-            print(f"[INFO] Déjà présent: {dest.relative_to(posters_root)}")
-            continue
+        final_path: Path | None = None
 
-        # Si pas d'extension dans l'URL, `download_poster` tentera via Content-Type
+        # Si un fichier avec le même nom existe, on saute (déjà téléchargé) mais on renseigne "file_poster"
+        if dest.exists():
+            final_path = dest
+            print(f"[INFO] Déjà présent: {dest.relative_to(posters_root)}")
+        else:
+            # Si pas d'extension dans l'URL, `download_poster` tentera via Content-Type
+            try:
+                final_path = download_poster(url, dest, session=session)
+                rel = final_path.relative_to(posters_root)
+                print(f"[OK] {rel}")
+            except requests.HTTPError as e:
+                print(f"[ERREUR HTTP] {json_path.name} :: '{titre}': {e}", file=sys.stderr)
+            except requests.RequestException as e:
+                print(f"[ERREUR RÉSEAU] {json_path.name} :: '{titre}': {e}", file=sys.stderr)
+            except Exception as e:
+                print(f"[ERREUR] {json_path.name} :: '{titre}': {e}", file=sys.stderr)
+
+        # Si on a un chemin de fichier valide, on met à jour l'objet JSON
+        if final_path is not None:
+            item["file_poster"] = str(final_path)
+            changed = True
+
+    # Si des éléments ont été mis à jour, on réécrit le fichier JSON
+    if changed:
         try:
-            final_path = download_poster(url, dest, session=session)
-            rel = final_path.relative_to(posters_root)
-            print(f"[OK] {rel}")
-        except requests.HTTPError as e:
-            print(f"[ERREUR HTTP] {json_path.name} :: '{titre}': {e}", file=sys.stderr)
-        except requests.RequestException as e:
-            print(f"[ERREUR RÉSEAU] {json_path.name} :: '{titre}': {e}", file=sys.stderr)
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            print(f"[ERREUR] {json_path.name} :: '{titre}': {e}", file=sys.stderr)
+            print(f"[ERREUR] Impossible d'écrire {json_path.name}: {e}", file=sys.stderr)
 
 
 def main() -> None:
