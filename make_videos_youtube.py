@@ -136,6 +136,11 @@ def process_week(base_dir: Path, week_str: str) -> None:
         out_name = _resolve_output_filename(item)
         out_path = output_dir / out_name
 
+        # Ne pas lancer le traitement si la sortie existe déjà
+        if out_path.exists():
+            print(f"[INFO] Fichier déjà présent, saut de l'élément {idx}: {out_path}", flush=True)
+            continue
+
         # Vérifications minimales
         missing = []
         if not ba_path or not ba_path.exists():
