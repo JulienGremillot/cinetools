@@ -115,6 +115,13 @@ def _path_or_none(p: Optional[str]) -> Optional[Path]:
         return None
 
 
+def _save_seances_json(seances_path: Path, data: list) -> None:
+    """Sauvegarde atomique simple du JSON de séances."""
+    # Écriture directe (simple et suffisante ici)
+    with seances_path.open("w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
 def process_week(base_dir: Path, week_str: str) -> None:
     seances_path = base_dir / SEANCES_DIRNAME / f"{week_str}.json"
     if not seances_path.exists():
@@ -157,11 +164,29 @@ def process_week(base_dir: Path, week_str: str) -> None:
 
         try:
             # Pour de meilleures performances, on évite la capture des sorties.
-            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            if result.returncode != 0:
+                print(f"[ERROR] Élément {idx}: ffmpeg a échoué (code {result.returncode}).", flush=True)
+                continue
+
+            # Mise à jour du JSON de séances avec le chemin complet du fichier généré
+            item["file_youtube"] = str(out_path.resolve())
+            try:
+                _save_seances_json(seances_path, items)
+                print(f"[INFO] Élément {idx}: JSON mis à jour (file_youtube={item['file_youtube']}).", flush=True)
+            except Exception as e:
+                print(f"[WARN] Élément {idx}: échec de mise à jour du JSON: {e}", flush=True)
+
+        except FileNotFoundError:
+            print("[ERROR] ffmpeg introuvable. Abandon du traitement pour cet élément.", flush=True)
+            continue
         except subprocess.CalledProcessError as e:
             print(f"[ERROR] ffmpeg a échoué pour {out_path.name} (code {e.returncode}).", flush=True)
+            continue
         except Exception as e:
             print(f"[ERROR] Erreur inattendue pour {out_path.name}: {e}", flush=True)
+            continue
+
 
 
 def main(argv: List[str]) -> int:
