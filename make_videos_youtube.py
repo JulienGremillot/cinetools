@@ -83,25 +83,6 @@ def _build_ffmpeg_command(
         str(out_path)
     ]
 
-    #     [
-    #     "ffmpeg",
-    #     "-y",
-    #     "-i", str(ba_path),
-    #     "-loop", "1",
-    #     "-t", str(still_duration),
-    #     "-i", str(carton_path),
-    #     "-f", "lavfi",
-    #     "-t", str(still_duration),
-    #     "-i", "anullsrc",
-    #     "-filter_complex", "[0:v] [0:a] [1:v] [2:a] concat=n=2:v=1:a=1 [v] [a]",
-    #     "-c:v", "libx264",
-    #     "-c:a", "aac",
-    #     "-strict", "-2",
-    #     "-map", "[v]",
-    #     "-map", "[a]",
-    #     str(out_path),
-    # ]
-
 
 def _load_seances_json(path: Path) -> List[Dict[str, Any]]:
     with path.open("r", encoding="utf-8") as f:
@@ -198,10 +179,9 @@ def main(argv: List[str]) -> int:
         if not seances_path.exists():
             print(f"[INFO] Aucun fichier de séances pour {wstr}. Arrêt.", flush=True)
             first_missing = True
-            break
-
-        process_week(base_dir, wstr)
-        year, week = _next_iso_year_week(year, week)
+        else:
+            process_week(base_dir, wstr)
+            year, week = _next_iso_year_week(year, week)
 
     return 0
 
