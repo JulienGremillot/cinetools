@@ -5,7 +5,7 @@ from datetime import datetime
 import re
 import unicodedata
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, Any, List, Optional
 from urllib.parse import urljoin
 
 import requests
@@ -163,6 +163,30 @@ class CinemaParadiso:
 
         return results
 
+
+    def _path_or_none(self, p: Optional[str]) -> Optional[Path]:
+        if not p:
+            return None
+        try:
+            return Path(p)
+        except Exception:
+            return None
+
+
+    def _load_seances_json(self, path: Path) -> List[Dict[str, Any]]:
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, list):
+            raise ValueError(f"Le contenu de {path} doit être une liste JSON.")
+        return data
+
+
+    def _save_seances_json(self, seances_path: Path, data: list) -> None:
+        """Sauvegarde atomique simple du JSON de séances."""
+        with seances_path.open("w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+
     def parse_program(self, html_path: Optional[str] = None):
         html = self._load_html(html_path)
         soup = BeautifulSoup(html, "html.parser")
@@ -225,21 +249,42 @@ class CinemaParadiso:
 
             # Sauvegarde un JSON par semaine
             filename = f"seances/{annee}-S{num_semaine}.json"
-            with open(filename, "w", encoding="utf-8") as f:
-                json.dump(
-                    [
-                        {
-                            "titre": film.titre,
-                            "url_poster": film.url_poster,
-                            "seances": [s.isoformat() for s in film.seances],
-                        }
-                        for film in films
-                    ],
-                    f,
-                    ensure_ascii=False,
-                    indent=2,
-                )
-            print(f"Sauvegardé: {filename}")
+
+            # Vérifie si le JSON est déjà renseigné
+            items = self._load_seances_json(Path(filename))
+
+            if not items:
+                print(f"Nouveau fichier de séances: {filename}", flush=True)
+                with open(filename, "w", encoding="utf-8") as f:
+                    json.dump(
+                        [
+                            {
+                                "titre": film.titre,
+                                "url_poster": film.url_poster,
+                                "seances": [s.isoformat() for s in film.seances],
+                            }
+                            for film in films
+                        ],
+                        f,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+                print(f"Sauvegardé: {filename}")
+
+            else:
+                for film in films:
+                    item = next((i for i in items if film.titre == i["titre"]), None)
+                    if item:
+                        item["url_poster"] = film.url_poster
+                        item["seances"] = [s.isoformat() for s in film.seances]
+                        item["new"] = "ahahah"
+                    else:
+                        items.append({
+                                "titre": film.titre,
+                                "url_poster": film.url_poster,
+                                "seances": [s.isoformat() for s in film.seances],
+                            })
+                self._save_seances_json(Path(filename), items)
 
 
 def main():
