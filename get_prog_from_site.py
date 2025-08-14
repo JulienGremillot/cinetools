@@ -67,11 +67,13 @@ def _parse_date_fr(self, date_text: str) -> datetime.date:
     return datetime.date(year, month_num, day)
 
 
-@dataclass
+# --- définition de la classe Film ---
 class Film:
-    titre: str
-    url_poster: str
-    seances: List[datetime]
+    def __init__(self, titre: str):
+        self.titre: str = titre
+        self.url_poster: Optional[str] = None
+        self.url_fiche: Optional[str] = None  # nouvel attribut pour la fiche film (URL absolue)
+        self.seances: list = []
 
 
 class CinemaParadiso:
@@ -215,7 +217,7 @@ class CinemaParadiso:
                 if not dt:
                     continue
 
-                # On remonte au dernier titre (h5) rencontré avant l'horaire
+                # On remonte au dernier titre (h5/h4/h3) rencontré avant l'horaire
                 titre_tag = hdiv.find_previous(["h5", "h4", "h3"])
                 if not titre_tag:
                     continue
@@ -224,21 +226,33 @@ class CinemaParadiso:
 
                 # Initialise l'entrée film si besoin
                 film = films_by_titre.get(titre)
-                if not film:
-                    # Tente de récupérer l'image (affiche) la plus proche dans le même bloc
-                    poster_url = ""
-                    # On remonte les ancêtres jusqu'à la section courante
-                    for anc in titre_tag.parents:
-                        if anc == section:
-                            break
-                        img = anc.find("img")
-                        if img and img.get("src"):
-                            poster_url = urljoin(self.base_url, img.get("src"))
-                            break
 
-                    film = Film(titre=titre, url_poster=poster_url, seances=[])
+                if film is None:
+                    # Création du film et récupération de l'URL de fiche via <a class="film-btn" data-src="...">
+                    film = Film(titre)
+
+                    # Cherche un <a class="film-btn" ... data-src="...">
+                    film_btn = None
+                    container = titre_tag
+                    for _ in range(5):
+                        if not container:
+                            break
+                        film_btn = container.find("a", class_="film-btn")
+                        if film_btn:
+                            break
+                        container = container.parent
+
+                    # Fallback: chercher après le titre si non trouvé dans les parents
+                    if not film_btn:
+                        film_btn = titre_tag.find_next("a", class_="film-btn")
+
+                    # Construit l'URL absolue à partir de data-src
+                    data_src = film_btn.get("data-src") if film_btn else None
+                    film.url_fiche = urljoin(self.base_url, data_src) if data_src else None
+
                     films_by_titre[titre] = film
 
+                # Ajoute la séance
                 film.seances.append(dt)
 
             films = list(films_by_titre.values())
@@ -261,6 +275,7 @@ class CinemaParadiso:
                             {
                                 "titre": film.titre,
                                 "url_poster": film.url_poster,
+                                "url_fiche": film.url_fiche,
                                 "seances": [s.isoformat() for s in film.seances],
                             }
                             for film in films
@@ -276,12 +291,13 @@ class CinemaParadiso:
                     item = next((i for i in items if film.titre == i["titre"]), None)
                     if item:
                         item["url_poster"] = film.url_poster
+                        item["url_fiche"] = film.url_fiche
                         item["seances"] = [s.isoformat() for s in film.seances]
-                        item["new"] = "ahahah"
                     else:
                         items.append({
                                 "titre": film.titre,
                                 "url_poster": film.url_poster,
+                                "url_fiche": film.url_fiche,
                                 "seances": [s.isoformat() for s in film.seances],
                             })
                 self._save_seances_json(Path(filename), items)
