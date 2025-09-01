@@ -9,6 +9,9 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Tuple, Dict, Any, List, Optional
 
+import requests
+from bs4 import BeautifulSoup
+
 SEANCES_DIRNAME = "seances"
 
 def _iso_year_week_today() -> Tuple[int, int]:
@@ -50,6 +53,30 @@ def _save_seances_json(seances_path: Path, data: list) -> None:
     with seances_path.open("w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
+def get_description(url_fiche: str) -> str:
+    """Renvoie la description de la fiche associée à l'URL."""
+    try:
+        response = requests.get(url_fiche)
+        response.raise_for_status()  # Lève une exception pour les codes d'état HTTP d'erreur
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Supprimer les scripts et les styles
+        for script_or_style in soup(["script", "style"]):
+            script_or_style.extract()
+
+        # Extraire le texte et le nettoyer
+        text = soup.get_text(separator=' ', strip=True)
+        
+        # Conserver une mise en page simple en remplaçant les doubles sauts de ligne
+        # par des sauts de ligne simples et en nettoyant les espaces multiples.
+        cleaned_text = '\n'.join(line.strip() for line in text.splitlines() if line.strip())
+        return cleaned_text
+    except requests.exceptions.RequestException as e:
+        print(f"Erreur lors de la requête HTTP vers {url_fiche}: {e}")
+        return ""
+    except Exception as e:
+        print(f"Erreur lors de l'extraction de la description de {url_fiche}: {e}")
+        return ""
 
 def process_week(base_dir: Path, week_str: str) -> None:
     seances_path = base_dir / SEANCES_DIRNAME / f"{week_str}.json"
@@ -65,15 +92,24 @@ def process_week(base_dir: Path, week_str: str) -> None:
         return
 
     for idx, item in enumerate(items, start=1):
-        url_fiche = _path_or_none(item.get("url_fiche"))
+        url_fiche_raw = item.get("url_fiche")
+        if url_fiche_raw:
+            url_fiche = url_fiche_raw.replace("\\", "/")
+        else:
+            url_fiche = None
+
         print(f"Trouvé URL fiche {url_fiche}", flush=True)
-        # Mise à jour du JSON de séances avec le chemin complet du fichier généré
-        #item["file_youtube"] = str(out_path.resolve())
-        try:
-            _save_seances_json(seances_path, items)
-            print(f"[INFO] Élément {idx}: JSON mis à jour (file_youtube={item['file_youtube']}).", flush=True)
-        except Exception as e:
-            print(f"[WARN] Élément {idx}: échec de mise à jour du JSON: {e}", flush=True)
+        if url_fiche:
+            item["description"] = get_description(url_fiche)
+        else:
+            item["description"] = ""
+
+    # Mise à jour du JSON de séances avec le chemin complet du fichier généré
+    try:
+        _save_seances_json(seances_path, items)
+        print(f"[INFO] Élément {idx}: JSON mis à jour (file_youtube={item['file_youtube']}).", flush=True)
+    except Exception as e:
+        print(f"[WARN] Élément {idx}: échec de mise à jour du JSON: {e}", flush=True)
 
 
 def main() -> int:
