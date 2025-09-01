@@ -1,3 +1,4 @@
+20th Century Studios FR
 A24
 AD VITAM
 Apollo Films
@@ -5,9 +6,14 @@ DC
 Diaphana Distribution
 Disney FR
 Entract Films
+Filmcoopi Zürich
 Haut et Court
 Illumination
+KFDBelgium
+KMBO Films
+latelier dimages
 LeParcDistribution
+Les Films du Whippet
 Marvel FR
 Paname Distribution
 Paradiso FilmsBE
@@ -17,6 +23,8 @@ Pathe
 SonyPictures
 SonyPicturesFr
 SND
+STUDIOCANAL France
+The Jokers
 UGC Distribution
 Universal Pictures
 Universal Pictures France
@@ -24,3 +32,4 @@ Warner Bros.
 Warner Bros. France
 Warner Bros. Pictures International
 Warner Bros. UK & Ireland
+Wild Bunch Distribution
