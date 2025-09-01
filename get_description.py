@@ -67,14 +67,13 @@ def process_week(base_dir: Path, week_str: str) -> None:
     for idx, item in enumerate(items, start=1):
         url_fiche = _path_or_none(item.get("url_fiche"))
         print(f"Trouvé URL fiche {url_fiche}", flush=True)
-
-    # Mise à jour du JSON de séances avec le chemin complet du fichier généré
-    #item["file_youtube"] = str(out_path.resolve())
-    try:
-        _save_seances_json(seances_path, items)
-        print(f"[INFO] Élément {idx}: JSON mis à jour (file_youtube={item['file_youtube']}).", flush=True)
-    except Exception as e:
-        print(f"[WARN] Élément {idx}: échec de mise à jour du JSON: {e}", flush=True)
+        # Mise à jour du JSON de séances avec le chemin complet du fichier généré
+        #item["file_youtube"] = str(out_path.resolve())
+        try:
+            _save_seances_json(seances_path, items)
+            print(f"[INFO] Élément {idx}: JSON mis à jour (file_youtube={item['file_youtube']}).", flush=True)
+        except Exception as e:
+            print(f"[WARN] Élément {idx}: échec de mise à jour du JSON: {e}", flush=True)
 
 
 def main() -> int:

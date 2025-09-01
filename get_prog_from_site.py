@@ -90,23 +90,24 @@ class CinemaParadiso:
 
     def _load_html(self, html_path: Optional[str]) -> str:
         """
-        Charge le HTML depuis un fichier local si fourni/existant,
-        sinon depuis l'URL distante.
+        Charge le HTML depuis l'URL distante,
+        sinon depuis un fichier local si fourni/existant.
         """
         if html_path:
             p = Path(html_path)
             if p.exists():
                 return p.read_text(encoding="utf-8")
 
-        # Détection automatique du fichier d'exemple si présent
-        default = Path(__file__).parent / "examples" / "Cinema Paradiso Nort sur Erdre.html"
-        if default.exists():
-            return default.read_text(encoding="utf-8")
-
-        # Fallback: récupération distante
+        # récupération distante
         resp = requests.get(self.program_url, timeout=20)
         resp.raise_for_status()
         return resp.text
+
+        # Fallback: fichier d'exemple si présent
+        # default = Path(__file__).parent / "examples" / "Cinema Paradiso Nort sur Erdre.html"
+        # if default.exists():
+        #     return default.read_text(encoding="utf-8")
+
 
     @staticmethod
     def _clean_spaces(s: str) -> str:
@@ -250,6 +251,25 @@ class CinemaParadiso:
                     data_src = film_btn.get("data-src") if film_btn else None
                     film.url_fiche = urljoin(self.base_url, data_src) if data_src else None
 
+                    # Cherche un <img class="film-btn" ... src="...">
+                    film_btn = None
+                    container = titre_tag
+                    for _ in range(5):
+                        if not container:
+                            break
+                        film_btn = container.find("img", class_="film-btn")
+                        if film_btn:
+                            break
+                        container = container.parent
+
+                    # Fallback: chercher après le titre si non trouvé dans les parents
+                    if not film_btn:
+                        film_btn = titre_tag.find_next("img", class_="film-btn")
+
+                    # Construit l'URL absolue à partir de data-src
+                    data_src = film_btn.get("src") if film_btn else None
+                    film.url_poster = urljoin(self.base_url, data_src) if data_src else None
+
                     films_by_titre[titre] = film
 
                 # Ajoute la séance
@@ -265,7 +285,9 @@ class CinemaParadiso:
             filename = f"seances/{annee}-S{num_semaine}.json"
 
             # Vérifie si le JSON est déjà renseigné
-            items = self._load_seances_json(Path(filename))
+            items = None
+            if Path(filename).exists():
+                items = self._load_seances_json(Path(filename))
 
             if not items:
                 print(f"Nouveau fichier de séances: {filename}", flush=True)
@@ -305,8 +327,8 @@ class CinemaParadiso:
 
 def main():
     cinema = CinemaParadiso()
-    # Laisse parse_program détecter automatiquement le fichier local d'exemple s'il existe,
-    # sinon la page distante sera utilisée.
+    # Laisse parse_program détecter automatiquement la page distante,
+    # sinon le fichier local d'exemple sera utilisé.
     cinema.parse_program()
 
 

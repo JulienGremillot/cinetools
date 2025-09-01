@@ -7,6 +7,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+from datetime import datetime
+import locale
 
 # Chemins
 PATH_VIDEOS = 'bandes_annonces'
@@ -16,16 +18,21 @@ PATH_RESOURCES = 'resources'
 
 # Paramètres globaux
 CARTON_MARGIN = 20
-DATES = [
-    ['Samedi 10 mai', '20h30'],
-    ['Dimanche 11 mai', '17h00']
-]
 
 ADD_CARTON_CMD = (
     "ffmpeg -y -i \"{0}\" -loop 1 -t 5 -i \"{1}\" -f lavfi -t 5 -i anullsrc "
     "-filter_complex \"[0:v] [0:a] [1:v] [2:a] concat=n=2:v=1:a=1 [v] [a]\" "
     "-c:v libx264 -c:a aac -strict -2 -map \"[v]\" -map \"[a]\" \"{2}\""
 )
+
+# Mettre la locale en français (si disponible sur ton système)
+try:
+    locale.setlocale(locale.LC_TIME, "fr_FR.UTF-8")  # Linux/macOS
+except locale.Error:
+    try:
+        locale.setlocale(locale.LC_TIME, "French_France")  # Windows
+    except locale.Error:
+        pass  # fallback si pas de locale FR installée
 
 # --- fonctions existantes ---
 
@@ -47,9 +54,9 @@ def get_title_splitted_if_necessary(titre, draw, img_width, poster_width, font):
     return titre
 
 
-def get_min_white_space(base_width, draw, font):
+def get_min_white_space(dates, base_width, draw, font):
     max_width = 0
-    for (jour, heure) in DATES:
+    for (jour, heure) in dates:
         seance = '- ' + jour + ' à ' + heure
         bbox = draw.textbbox((0, 0), seance, font=font)
         width = bbox[2] - bbox[0]
@@ -57,7 +64,7 @@ def get_min_white_space(base_width, draw, font):
     return base_width - max_width
 
 
-def make_carton_for_video(video_path, poster_path, titre):
+def make_carton_for_video(video_path, poster_path, titre, dates_str):
     print(f"Traitement de : {video_path}")
 
     vid = cv2.VideoCapture(video_path)
@@ -97,19 +104,31 @@ def make_carton_for_video(video_path, poster_path, titre):
     pos = (poster_img.width + CARTON_MARGIN * 3 + white_space / 2, CARTON_MARGIN * 2)
     draw.text(pos, titre, 'rgb(10,10,10)', font)
 
+    dates = []
+    for date_string in dates_str:
+        dt = datetime.fromisoformat(date_string)
+        # Format : "Samedi 5 octobre"
+        # jour sans zéro : %d donne 05 → on peut convertir en int
+        jour_str = str(int(dt.strftime("%d")))
+        date_str = dt.strftime("%A %B").capitalize()
+        jour = f"{date_str.split()[0]} {jour_str} {date_str.split()[1]}"
+        # Format heure : "20h30"
+        heure = dt.strftime('%Hh%M')
+        dates.append([jour, heure])
+
     font = ImageFont.truetype(font_path_regular, 35)
     line = 1
-    if len(DATES) == 1:
-        seance = DATES[0][0] + ' à ' + DATES[0][1]
+    if len(dates) == 1:
+        seance = dates[0][0] + ' à ' + dates[0][1]
         bbox = draw.textbbox((0, 0), seance, font=font)
         seance_width = bbox[2] - bbox[0]
         pos = (poster_img.width + CARTON_MARGIN * 3 + (width - poster_img.width - CARTON_MARGIN * 4 - seance_width) / 2,
                title_height + CARTON_MARGIN * 6 * line)
         draw.text(pos, seance, 'rgb(10,10,10)', font)
     else:
-        white_space = get_min_white_space(width - poster_img.width - CARTON_MARGIN * 4, draw, font)
-        coef_vertical = 3 if len(DATES) > 4 else 4
-        for (date, heure) in DATES:
+        white_space = get_min_white_space(dates, width - poster_img.width - CARTON_MARGIN * 4, draw, font)
+        coef_vertical = 3 if len(dates) > 4 else 4
+        for (date, heure) in dates:
             pos = (
                 poster_img.width + CARTON_MARGIN * 3 + white_space / 2,
                 title_height + CARTON_MARGIN * 2 + CARTON_MARGIN * coef_vertical * line
@@ -198,7 +217,7 @@ def find_best_poster_path(semaine_dir: str, video_base_name: str):
     return best_path if best_path and best_score >= 0.55 else None
 
 
-# --- récupérer le titre depuis le fichier de séance en fonction du poster ---
+# --- récupérer le titre et les dates depuis le fichier de séance en fonction du poster ---
 
 def _get_title_from_seance_by_poster(semaine_dir: str, poster_path: str):
     """
@@ -258,7 +277,7 @@ def _get_title_from_seance_by_poster(semaine_dir: str, poster_path: str):
         for title_key in ('title', 'titre', 'name', 'nom'):
             title_val = item.get(title_key)
             if isinstance(title_val, str) and title_val.strip():
-                return title_val.strip()
+                return title_val.strip(), item.get('seances')
 
     return None
 
@@ -363,8 +382,8 @@ def process_all_videos():
                 print(f"[!] Poster manquant pour : {video_base_name} (semaine {semaine_dir}), vidéo ignorée.")
                 continue
 
-            # Récupère le titre depuis seances/<semaine_dir>.json en se basant sur le fichier poster
-            seance_title = _get_title_from_seance_by_poster(semaine_dir, os.path.basename(poster_path))
+            # Récupère le titre et les dates depuis seances/<semaine_dir>.json en se basant sur le fichier poster
+            seance_title, dates = _get_title_from_seance_by_poster(semaine_dir, os.path.basename(poster_path))
             titre_final = seance_title if seance_title else video_base_name
 
             if seance_title:
@@ -372,7 +391,7 @@ def process_all_videos():
             else:
                 print(f"[OK] Poster associé: {video_base_name} -> {os.path.basename(poster_path)} ; titre séance introuvable, on garde \"{video_base_name}\"")
 
-            make_carton_for_video(video_path, poster_path, titre_final)
+            make_carton_for_video(video_path, poster_path, titre_final, dates)
             processed = True
 
             # ... dans la boucle où vous traitez chaque bande-annonce et générez le carton:
