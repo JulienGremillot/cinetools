@@ -2,6 +2,7 @@ import os
 import json
 from datetime import datetime, timedelta
 from isoweek import Week
+import locale
 from dotenv import load_dotenv
 import google.auth.transport.requests
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -9,7 +10,10 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 # Scopes nécessaires (upload de vidéos)
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+SCOPES = [
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube.force-ssl"
+]
 
 load_dotenv()
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
@@ -20,6 +24,11 @@ def get_authenticated_service():
     return build("youtube", "v3", credentials=creds)
 
 def get_playlist_name_from_seance_file(filepath):
+    # Définir le locale en français pour le formatage des dates
+    locale.setlocale(locale.LC_TIME, 'fr_FR.utf8') # Pour Linux/macOS
+    # Pour Windows, vous pourriez avoir besoin de 'fra_FRA' ou 'French_France.1252'
+    # locale.setlocale(locale.LC_ALL, 'French_France.1252') 
+
     # Extrait l'année et le numéro de semaine du nom de fichier (ex: 2025-S36.json)
     filename = os.path.basename(filepath)
     year_str, week_str = filename.split('-S')
@@ -40,19 +49,21 @@ def get_playlist_name_from_seance_file(filepath):
     start_date_format = "%d %B"
     end_date_format = "%d %B %Y"
 
-    # Ajoute le mois si les mois sont différents ou l'année si les années sont différentes
-    if wednesday.month != next_tuesday.month:
-        end_date_str = next_tuesday.strftime(end_date_format)
-        if wednesday.year != next_tuesday.year:
-            start_date_str = wednesday.strftime("%d %B %Y")
-        else:
-            start_date_str = wednesday.strftime(start_date_format)
-    elif wednesday.year != next_tuesday.year:
-        start_date_str = wednesday.strftime("%d %B %Y")
-        end_date_str = next_tuesday.strftime("%d %B %Y")
+    # Formater les jours sans zéro non significatif
+    start_day = str(wednesday.day)
+    end_day = str(next_tuesday.day)
+
+    # Gérer la répétition du mois et de l'année
+    if wednesday.year != next_tuesday.year:
+        start_date_str = wednesday.strftime(f"%#d %B %Y" if os.name == 'nt' else f"%-d %B %Y")
+        end_date_str = next_tuesday.strftime(f"%#d %B %Y" if os.name == 'nt' else f"%-d %B %Y")
+    elif wednesday.month != next_tuesday.month:
+        start_date_str = wednesday.strftime(f"%#d %B" if os.name == 'nt' else f"%-d %B")
+        end_date_str = next_tuesday.strftime(f"%#d %B %Y" if os.name == 'nt' else f"%-d %B %Y")
     else:
-        start_date_str = wednesday.strftime(start_date_format)
-        end_date_str = next_tuesday.strftime("%d %B %Y") # Always include year for the end date
+        # Même mois et même année, ne pas répéter le mois pour la date de début
+        start_date_str = wednesday.strftime(f"%#d" if os.name == 'nt' else f"%-d")
+        end_date_str = next_tuesday.strftime(f"%#d %B %Y" if os.name == 'nt' else f"%-d %B %Y")
 
     return f"Semaine du {start_date_str} au {end_date_str}"
 
@@ -129,7 +140,8 @@ def upload_video(youtube, file, title, description, category="22", privacy="publ
             "categoryId": category
         },
         "status": {
-            "privacyStatus": privacy
+            "privacyStatus": privacy,
+            "selfDeclaredMadeForKids": False  # Précise que la vidéo n'est pas conçue pour les enfants
         }
     }
 
@@ -167,10 +179,10 @@ def main():
 
                 if "file_youtube" in item and "url_youtube" not in item:
                     video_file = item["file_youtube"]
-                    title = item.get("title", os.path.basename(video_file))
-                    description = item.get("description", "")
+                    title = item.get("titre", os.path.basename(video_file))  # Utilise l'attribut "titre"
+                    description = item.get("description", "") # Utilise l'attribut "description"
                     category = item.get("category", "22")
-                    privacy = item.get("privacy", "unlisted")
+                    privacy = "public" # Force la confidentialité à "public"
 
                     if not os.path.exists(video_file):
                         print(f"Fichier vidéo non trouvé : {video_file}")
@@ -189,7 +201,8 @@ def main():
                         updated_data = True
                     except Exception as e:
                         print(f"Erreur lors de l'upload de {video_file}: {e}")
-                        if "quotaExceeded" in str(e):
+                        # Mise à jour pour détecter le message spécifique de l'erreur de quota
+                        if "The user has exceeded the number of videos they may upload" in str(e):
                             print("Quota YouTube dépassé. Arrêt des uploads.")
                             quota_error_occurred = True
 
