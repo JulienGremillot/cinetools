@@ -4,16 +4,34 @@ import json
 from datetime import datetime, timedelta
 import requests
 from dotenv import load_dotenv
+from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
 
 load_dotenv()
 
-HUGGINGFACE_API_KEY = os.getenv("ACCESS_TOKEN_HF")
-HUGGINGFACE_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+OLLAMA_API_URL = "http://localhost:11434/api/generate"
+OLLAMA_MODEL = "gemma2"
 
+@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10))
 def query_llm(payload):
-    headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
-    response = requests.post(HUGGINGFACE_API_URL, headers=headers, json=payload)
-    return response.json()
+    prompt = payload["inputs"]
+    data = {
+        "model": OLLAMA_MODEL,
+        "prompt": prompt,
+        "stream": False
+    }
+    headers = {"Content-Type": "application/json"}
+    try:
+        response = requests.post(OLLAMA_API_URL, headers=headers, json=data, timeout=300)
+        response.raise_for_status() # Lève une exception pour les codes d'erreur HTTP
+        json_response = response.json()
+        if "response" in json_response:
+            return [{"generated_text": json_response["response"]}]
+        else:
+            print(f"Erreur ou réponse vide de l'API Ollama: {json_response}")
+            raise Exception("Réponse vide ou invalide d'Ollama")
+    except requests.exceptions.RequestException as e:
+        print(f"Erreur lors de l'appel à l'API Ollama: {e}")
+        raise
 
 def main():
     seances_dir = "seances"
@@ -38,7 +56,7 @@ def main():
             print(f"Lecture du fichier : {target_file}")
             with open(target_file, 'r', encoding='utf-8') as f:
                 seances_data = json.load(f)
-            # TODO: Traiter les données de seances_data
+
             for film in seances_data:
                 titre = film.get("titre", "")
                 seances = film.get("seances", [])
@@ -70,7 +88,11 @@ def main():
 
                 print(f"Envoi du prompt pour '{titre}'...")
                 payload = {"inputs": prompt}
-                response = query_llm(payload)
+                try:
+                    response = query_llm(payload)
+                except RetryError as e:
+                    print(f"Erreur de réessai pour '{titre}': {e}")
+                    continue
 
                 if response and isinstance(response, list) and 'generated_text' in response[0]:
                     generated_text = response[0]['generated_text']
@@ -89,7 +111,7 @@ def main():
                         f.write(post_content)
                     print(f"Post sauvegardé dans : {output_filepath}")
                 else:
-                    print(f"Erreur ou réponse vide de l'API Hugging Face pour '{titre}': {response}")
+                    print(f"Erreur ou réponse vide de l'API Ollama pour '{titre}': {response}")
         else:
             print(f"Fichier non trouvé : {target_file}. Arrêt de la boucle.")
             break
