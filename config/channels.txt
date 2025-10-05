@@ -2,30 +2,44 @@
 A24
 AD VITAM
 Apollo Films
+AuCiné
+Cinéma Public Films
 DC
 Diaphana Distribution
 Disney FR
 Entract Films
+Films Tous Publics
 Filmcoopi Zürich
+freneticfilms
 Haut et Court
 Illumination
 KFDBelgium
 KMBO Films
 latelier dimages
 LeParcDistribution
+Les Films du Préau
 Les Films du Whippet
+Little KMBO
 Marvel FR
+Memento
+O'Brother Distribution
+PAN-Distribution
 Paname Distribution
 Paradiso FilmsBE
 Paramount Pictures France
 Paramount Pictures Quebec
 Pathe
+Pathé Films
+Pauline Wald
+PyramideDistrib
 SonyPictures
 SonyPicturesFr
 SND
 STUDIOCANAL France
+Tandem
 The Jokers
 UGC Distribution
+Unifrance
 Universal Pictures
 Universal Pictures France
 Warner Bros.
@@ -33,3 +47,4 @@ Warner Bros. France
 Warner Bros. Pictures International
 Warner Bros. UK & Ireland
 Wild Bunch Distribution
+Zinc.

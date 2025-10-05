@@ -78,12 +78,15 @@ def main():
                     continue
 
                 prompt = f"""
-                Rédige un post percutant et attrayant pour Instagram et Facebook pour annoncer le film "{titre}".
+                Rédige un post sympa et attrayant pour Instagram et Facebook pour annoncer le film "{titre}".
                 Le film sera projeté aux dates et heures suivantes : {', '.join(seances)}.
                 Voici une brève description du film : {description}.
                 N'oublie pas d'inclure le lien de la bande-annonce YouTube au format texte : {url_youtube}
                 Ajoute quelques hashtags pertinents pour le cinéma, la sortie de film et les réseaux sociaux.
                 Le post doit être engageant et inciter les gens à venir voir le film.
+                Écris en texte brut, sans utiliser de markdown (pas de ##, pas de **, pas de crochets ou parenthèses
+                 de lien). Mets en valeur avec des emojis et des phrases courtes et dynamiques.
+                N'incite pas les gens à réserver leurs places, car notre cinéma ne propose pas encore ce service.
                 """
 
                 print(f"Envoi du prompt pour '{titre}'...")

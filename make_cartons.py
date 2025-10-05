@@ -19,12 +19,6 @@ PATH_RESOURCES = 'resources'
 # Paramètres globaux
 CARTON_MARGIN = 20
 
-ADD_CARTON_CMD = (
-    "ffmpeg -y -i \"{0}\" -loop 1 -t 5 -i \"{1}\" -f lavfi -t 5 -i anullsrc "
-    "-filter_complex \"[0:v] [0:a] [1:v] [2:a] concat=n=2:v=1:a=1 [v] [a]\" "
-    "-c:v libx264 -c:a aac -strict -2 -map \"[v]\" -map \"[a]\" \"{2}\""
-)
-
 # Mettre la locale en français (si disponible sur ton système)
 try:
     locale.setlocale(locale.LC_TIME, "fr_FR.UTF-8")  # Linux/macOS
@@ -141,10 +135,6 @@ def make_carton_for_video(video_path, poster_path, titre, dates_str):
     base_name = clean_title(titre)
     carton_file = os.path.join(PATH_CARTONS, base_name + '.png')
     carton.save(carton_file)
-
-    output_video = video_path.replace('.mp4', '_new.mp4')
-    cmd = ADD_CARTON_CMD.format(video_path, carton_file, output_video)
-    print("Commande ffmpeg :", cmd)
 
 
 def get_videos_dir_from_date(date_obj):
