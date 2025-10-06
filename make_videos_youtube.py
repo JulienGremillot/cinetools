@@ -156,7 +156,8 @@ def process_week(base_dir: Path, week_str: str) -> None:
             missing.append("file_carton")
 
         if missing:
-            print(f"[WARN] Élément {idx}: champs manquants ou fichiers introuvables: {', '.join(missing)}. Saut...", flush=True)
+            film_title = item.get("titre", "Titre inconnu")
+            print(f"[WARN] Élément {idx} ({film_title}): champs manquants ou fichiers introuvables: {', '.join(missing)}. Saut...", flush=True)
             continue
 
         cmd = _build_ffmpeg_command(ba_path, carton_path, out_path)
