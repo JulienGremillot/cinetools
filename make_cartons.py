@@ -7,13 +7,13 @@ from pathlib import Path
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import locale
 
 # Chemins
 PATH_VIDEOS = 'bandes_annonces'
 PATH_POSTERS = 'posters'
-PATH_CARTONS = 'cartons'
+PATH_CARTONS = Path('cartons')
 PATH_RESOURCES = 'resources'
 
 # Paramètres globaux
@@ -29,6 +29,22 @@ except locale.Error:
         pass  # fallback si pas de locale FR installée
 
 # --- fonctions existantes ---
+
+def _iso_year_week_today() -> tuple[int, int]:
+    today = date.today()
+    iso = today.isocalendar()
+    return iso.year, iso.week
+
+
+def _week_str(year: int, week: int) -> str:
+    return f"{year}-S{week:02d}"
+
+
+def _next_iso_year_week(year: int, week: int) -> tuple[int, int]:
+    monday = date.fromisocalendar(year, week, 1)
+    next_monday = monday + timedelta(days=7)
+    iso = next_monday.isocalendar()
+    return iso.year, iso.week
 
 def clean_title(titre):
     return titre.replace("'", " ").replace("?", "").replace(":", "-").replace("\n", " ")
@@ -58,7 +74,7 @@ def get_min_white_space(dates, base_width, draw, font):
     return base_width - max_width
 
 
-def make_carton_for_video(video_path, poster_path, titre, dates_str):
+def make_carton_for_video(video_path, poster_path, titre, dates_str, semaine_dir):
     print(f"Traitement de : {video_path}")
 
     vid = cv2.VideoCapture(video_path)
@@ -130,11 +146,14 @@ def make_carton_for_video(video_path, poster_path, titre, dates_str):
             draw.text(pos, f'- {date} à {heure}', 'rgb(10,10,10)', font)
             line += 1
 
-    if not os.path.exists(PATH_CARTONS):
-        os.makedirs(PATH_CARTONS)
+    # Créer le répertoire de la semaine si nécessaire
+    cartons_semaine_dir = PATH_CARTONS / semaine_dir
+    cartons_semaine_dir.mkdir(parents=True, exist_ok=True)
+
     base_name = clean_title(titre)
-    carton_file = os.path.join(PATH_CARTONS, base_name + '.png')
+    carton_file = cartons_semaine_dir / (base_name + '.png')
     carton.save(carton_file)
+    return carton_file.resolve()
 
 
 def get_videos_dir_from_date(date_obj):
@@ -381,22 +400,23 @@ def process_all_videos():
             else:
                 print(f"[OK] Poster associé: {video_base_name} -> {os.path.basename(poster_path)} ; titre séance introuvable, on garde \"{video_base_name}\"")
 
-            make_carton_for_video(video_path, poster_path, titre_final, dates)
+            # La fonction retourne maintenant le chemin du carton généré
+            carton_png_path = make_carton_for_video(video_path, poster_path, titre_final, dates, semaine_dir)
             processed = True
 
             # ... dans la boucle où vous traitez chaque bande-annonce et générez le carton:
             # Supposons que vous disposiez déjà de:
             # - semaine_dir: str (ex. "2025-S35")
             # - seance_title: str (le titre exact de la séance)
-            # - ba_input_path: str ou Path (chemin vers la bande-annonce en entrée)
+            # - b-input_path: str ou Path (chemin vers la bande-annonce en entrée)
             # - carton_png_path: str ou Path (chemin du .png généré pour ce film)
 
             # Après avoir déterminé ces chemins et généré le carton, ajoutez:
-            carton_png_path = os.path.join(PATH_CARTONS, clean_title(titre_final) + '.png')  # deduit le chemin du carton
+            # carton_png_path = os.path.join(PATH_CARTONS, clean_title(titre_final) + '.png')  # deduit le chemin du carton
             updates_for_json.append({
                 "titre": seance_title,
                 "file_bandeannonce": str(Path(video_path).resolve()),
-                "file_carton": str(Path(carton_png_path).resolve()),
+                "file_carton": str(carton_png_path),
             })
 
         # ... après avoir terminé la boucle de traitement de toutes les BAs de la semaine :
