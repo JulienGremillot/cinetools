@@ -416,25 +416,37 @@ def _collect_scheduled_timestamps() -> set:
 
     return scheduled_timestamps
 
-_FILENAME_RE = re.compile(r"^(?P<y>\d{4})-(?P<m>\d{2})-(?P<d>\d{2})-(?P<H>\d{2})h(?P<M>\d{2})\.txt$")
+# Nouveau format: YYYY-MM-DD-HHhMM-YYYY-SWW-<poster>.<ext>.txt
+# Ancien format supporté en fallback: YYYY-MM-DD-HHhMM.txt
+_POST_FILENAME_RE = re.compile(
+    r"^(?P<y>\d{4})-(?P<m>\d{2})-(?P<d>\d{2})-(?P<H>\d{2})h(?P<M>\d{2})"
+    r"(?:-(?P<week>\d{4}-S\d{2})-(?P<poster>.+?\.(?:jpg|jpeg|png|webp)))?\.txt$",
+    re.IGNORECASE,
+)
 
-def _parse_local_paris_dt_from_filename(filename: str) -> datetime | None:
-    """Extrait un datetime timezone-aware (Europe/Paris) depuis un nom de fichier.
-    Format attendu: YYYY-MM-DD-HHhMM.txt
+def _parse_post_filename(filename: str) -> tuple[datetime | None, str | None, str | None]:
+    """Extrait (datetime Europe/Paris, week_dir_name, poster_filename) depuis le nom de fichier.
+
+    Gère:
+      - Nouveau format: YYYY-MM-DD-HHhMM-YYYY-SWW-<poster>.<ext>.txt
+      - Ancien format: YYYY-MM-DD-HHhMM.txt (week_dir_name et poster_filename seront None)
     """
-    m = _FILENAME_RE.match(filename)
+    m = _POST_FILENAME_RE.match(filename)
     if not m:
-        return None
+        return (None, None, None)
     try:
         year = int(m.group("y"))
         month = int(m.group("m"))
         day = int(m.group("d"))
         hour = int(m.group("H"))
         minute = int(m.group("M"))
+        week = m.group("week")
+        poster = m.group("poster")
         paris_tz = tz.gettz("Europe/Paris")
-        return datetime(year, month, day, hour, minute, tzinfo=paris_tz)
+        dt = datetime(year, month, day, hour, minute, tzinfo=paris_tz)
+        return (dt, week, poster)
     except Exception:
-        return None
+        return (None, None, None)
 
 def _to_utc_epoch_seconds(local_dt: datetime) -> int:
     """Convertit un datetime aware (Europe/Paris) vers un timestamp Unix UTC (secondes)."""
@@ -451,6 +463,35 @@ def _schedule_facebook_post(message: str, scheduled_publish_time_utc: int) -> di
     """
     if not PAGE_ACCESS_TOKEN or not FACEBOOK_PAGE_ID:
         print("Erreur : PAGE_ACCESS_TOKEN ou FACEBOOK_PAGE_ID manquant(s)")
+        return None
+
+def _schedule_facebook_photo(caption: str, image_path: Path, scheduled_publish_time_utc: int) -> dict | None:
+    """Programme un post Facebook avec image (photo) sur la Page.
+    Utilise l'endpoint /{page-id}/photos avec published=false et scheduled_publish_time.
+    """
+    if not PAGE_ACCESS_TOKEN or not FACEBOOK_PAGE_ID:
+        print("Erreur : PAGE_ACCESS_TOKEN ou FACEBOOK_PAGE_ID manquant(s)")
+        return None
+
+    url = f"https://graph.facebook.com/v23.0/{FACEBOOK_PAGE_ID}/photos"
+    data = {
+        "access_token": PAGE_ACCESS_TOKEN,
+        "caption": caption,
+        "published": "false",
+        "scheduled_publish_time": scheduled_publish_time_utc,
+    }
+    try:
+        with open(image_path, "rb") as fp:
+            files = {"source": fp}
+            resp = requests.post(url, data=data, files=files)
+            resp.raise_for_status()
+            return resp.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Erreur lors de la programmation du post photo ({scheduled_publish_time_utc}) : {e}")
+        try:
+            print(f"Détails : {resp.json()}")
+        except Exception:
+            print(f"Contenu brut : {resp.text if 'resp' in locals() else 'non dispo'}")
         return None
 
     url = f"https://graph.facebook.com/v23.0/{FACEBOOK_PAGE_ID}/feed"
@@ -491,10 +532,12 @@ def sync_posts_from_directory(posts_dir: str | Path) -> None:
     skipped_past = 0
     scanned = 0
 
+    posters_base = base_dir.parent / "posters"
+
     for entry in sorted(base_dir.iterdir()):
         if not entry.is_file():
             continue
-        local_dt = _parse_local_paris_dt_from_filename(entry.name)
+        local_dt, week_dir_name, poster_filename = _parse_post_filename(entry.name)
         if local_dt is None:
             continue
         scanned += 1
@@ -514,11 +557,25 @@ def sync_posts_from_directory(posts_dir: str | Path) -> None:
             print(f"Fichier vide, ignoré: {entry.name}")
             continue
 
-        res = _schedule_facebook_post(message, ts_utc)
+        # Tenter un post avec image si les éléments sont présents et le fichier existe
+        res = None
+        image_path: Path | None = None
+        if week_dir_name and poster_filename:
+            candidate = posters_base / week_dir_name / poster_filename
+            if candidate.exists() and candidate.is_file():
+                image_path = candidate
+                res = _schedule_facebook_photo(message, image_path, ts_utc)
+
+        # Fallback: post texte si échec ou pas d'image
+        if res is None:
+            res = _schedule_facebook_post(message, ts_utc)
         if res is not None:
             created_count += 1
             already_scheduled.add(ts_utc)
-            print(f"✓ Programmé: {entry.name} -> {ts_utc}")
+            if image_path is not None:
+                print(f"✓ Programmé (image): {entry.name} -> {ts_utc} | img={image_path}")
+            else:
+                print(f"✓ Programmé (texte): {entry.name} -> {ts_utc}")
         else:
             print(f"✗ Échec programmation: {entry.name}")
 

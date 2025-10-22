@@ -44,6 +44,21 @@ def file_exists(path_str: str | None) -> bool:
         return False
 
 
+def poster_relative_url(file_poster: str | None) -> str | None:
+    """Return a URL path like 'posters/2025-S43/name.jpg' if file_poster is under POSTERS_DIR."""
+    if not file_poster:
+        return None
+    try:
+        p = Path(file_poster)
+        if not p.exists() or not p.is_file():
+            return None
+        # Ensure we only expose files inside the posters directory
+        rel = p.relative_to(POSTERS_DIR)
+        return f"posters/{rel.as_posix()}"
+    except Exception:
+        return None
+
+
 def build_week_payload(week_file: Path) -> Dict[str, Any]:
     year, week = parse_week_from_filename(week_file.name)
     try:
@@ -56,6 +71,7 @@ def build_week_payload(week_file: Path) -> Dict[str, Any]:
         titre = film.get("titre")
         description = film.get("description")
         seances = film.get("seances", [])
+        url_poster = film.get("url_poster")
         file_ba = film.get("file_bandeannonce")
         file_carton = film.get("file_carton")
         file_yt = film.get("file_youtube")
@@ -66,7 +82,8 @@ def build_week_payload(week_file: Path) -> Dict[str, Any]:
             "titre": titre,
             "description": description,
             "seances": seances,
-            "poster": file_poster,
+            "poster": poster_relative_url(file_poster),
+            "url_poster": url_poster,
             "status": {
                 "bande_annonce": bool(file_exists(file_ba)),
                 "carton": bool(file_exists(file_carton)),
@@ -129,6 +146,11 @@ def api_seances():
 @app.route("/")
 def index():
     return send_from_directory(app.static_folder, "index.html")
+
+
+@app.route("/posters/<path:filename>")
+def serve_poster(filename: str):
+    return send_from_directory(str(POSTERS_DIR), filename)
 
 
 if __name__ == "__main__":

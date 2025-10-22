@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 import requests
 from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
+import re
+import unicodedata
 
 load_dotenv()
 
@@ -33,6 +35,53 @@ def query_llm(payload):
         print(f"Erreur lors de l'appel à l'API Ollama: {e}")
         raise
 
+def _sanitize_filename_base(text):
+    """Normalise un titre en base de nom de fichier: supprime accents, garde alnum et underscores."""
+    if not text:
+        return ""
+    # Normalisation Unicode et suppression des accents
+    normalized = unicodedata.normalize("NFKD", text)
+    without_accents = normalized.encode("ascii", "ignore").decode("ascii")
+    # Remplacements simples des apostrophes et similaires
+    without_quotes = without_accents.replace("'", " ").replace("’", " ")
+    # Remplace tout caractère non alphanumérique par un underscore
+    replaced = re.sub(r"[^A-Za-z0-9]+", "_", without_quotes)
+    # Nettoyage des underscores multiples et bords
+    replaced = re.sub(r"_+", "_", replaced).strip("_")
+    return replaced
+
+def _find_poster_filename(title, week_dir_name):
+    """Tente de retrouver le nom de fichier poster (avec extension) pour un titre donné.
+
+    Si aucun fichier correspondant n'est trouvé dans posters/<semaine>,
+    retourne un nom par défaut en .jpg basé sur le titre normalisé.
+    """
+    base = _sanitize_filename_base(title)
+    posters_dir = os.path.join("posters", week_dir_name)
+    candidate_exts = [".jpg", ".jpeg", ".png", ".webp"]
+
+    # Essai direct base + ext si le dossier existe
+    if os.path.isdir(posters_dir):
+        for ext in candidate_exts:
+            candidate = f"{base}{ext}"
+            candidate_path = os.path.join(posters_dir, candidate)
+            if os.path.exists(candidate_path):
+                return candidate
+        # Sinon, comparer via normalisation des stems présents
+        try:
+            for fname in os.listdir(posters_dir):
+                lower = fname.lower()
+                if not any(lower.endswith(e) for e in candidate_exts):
+                    continue
+                stem = os.path.splitext(fname)[0]
+                if _sanitize_filename_base(stem).lower() == base.lower():
+                    return fname
+        except OSError:
+            pass
+
+    # Défaut si non trouvé
+    return f"{base}.jpg"
+
 def main():
     seances_dir = "seances"
     current_date = datetime.now()
@@ -45,6 +94,7 @@ def main():
     # Formatage pour correspondre à 2025-S36.json
     file_pattern = f"{year}-S{{:02d}}.json"
     current_week_file = file_pattern.format(week_number)
+    week_dir_name = os.path.splitext(current_week_file)[0]
 
     if not os.path.exists("posts"):
         os.makedirs("posts")
@@ -62,6 +112,7 @@ def main():
                 seances = film.get("seances", [])
                 description = film.get("description", "")
                 url_youtube = film.get("url_youtube", "")
+                poster_filename = _find_poster_filename(titre, week_dir_name)
 
                 if not all([titre, seances, description, url_youtube]):
                     print(f"Informations manquantes pour un film dans {target_file}, ignoré.")
@@ -70,7 +121,8 @@ def main():
                 # Utilise le format complet de la première séance
                 first_seance_date = datetime.strptime(seances[0], "%Y-%m-%dT%H:%M:%S")
                 post_date = first_seance_date - timedelta(hours=48)
-                output_filename = post_date.strftime("%Y-%m-%d-%Hh%M.txt")
+                output_filename_base = post_date.strftime("%Y-%m-%d-%Hh%M")
+                output_filename = f"{output_filename_base}-{week_dir_name}-{poster_filename}.txt"
                 output_filepath = os.path.join("posts", output_filename)
 
                 if os.path.exists(output_filepath):
@@ -124,6 +176,7 @@ def main():
         year = current_date.year
         week_number = current_date.isocalendar()[1]
         current_week_file = file_pattern.format(week_number)
+        week_dir_name = os.path.splitext(current_week_file)[0]
 
 if __name__ == "__main__":
     main()

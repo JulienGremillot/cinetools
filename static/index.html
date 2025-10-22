@@ -99,12 +99,10 @@
             } catch { return iso; }
           },
           resolvePoster(film) {
-            // Utilise file_poster absolu si accessible localement, sinon url_poster si disponible
+            // Préfère le chemin relatif servi par l'API (ex: posters/2025-S43/nom.jpg)
             const local = film.poster;
-            if (local && local.startsWith('C:\\')) {
-              // Accès direct aux chemins Windows n'est pas possible via HTTP — pas servi par Flask
-              // On préfère l'URL distante si fournie ; sinon placeholder
-            }
+            if (local) return '/' + local.replace(/^\/+/, '');
+            // Sinon, fallback sur l'URL distante si disponible
             if (film.url_poster) return film.url_poster;
             return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1200"><rect width="100%" height="100%" fill="#0b1220"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#94a3b8" font-family="Inter" font-size="24">Affiche indisponible</text></svg>`);
           }
