@@ -1,9 +1,12 @@
 
 import os
+import re
+from pathlib import Path
 import requests
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timezone
 import dateutil.parser
+from dateutil import tz
 
 load_dotenv()
 
@@ -308,11 +311,231 @@ def get_scheduled_posts():
     else:
         print("Skipping Instagram scheduled posts check as no Instagram Business Account ID was found.")
 
+def _collect_scheduled_timestamps() -> set:
+    """Retourne l'ensemble des timestamps Unix UTC (int) des publications déjà programmées.
+    Agrège les infos depuis plusieurs endpoints (scheduled_posts, promotable_posts, unpublished_posts, videos).
+    """
+    scheduled_timestamps: set[int] = set()
+
+    if not PAGE_ACCESS_TOKEN or not FACEBOOK_PAGE_ID:
+        return scheduled_timestamps
+
+    # 1) scheduled_posts
+    try:
+        url = f"https://graph.facebook.com/v23.0/{FACEBOOK_PAGE_ID}/scheduled_posts"
+        params = {
+            "access_token": PAGE_ACCESS_TOKEN,
+            "fields": "scheduled_publish_time",
+            "limit": 100,
+        }
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        for post in data.get("data", []):
+            ts = post.get("scheduled_publish_time")
+            if isinstance(ts, int):
+                scheduled_timestamps.add(ts)
+            else:
+                # Parfois renvoyé en str
+                try:
+                    scheduled_timestamps.add(int(ts))
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    # 2) promotable_posts (fallback)
+    try:
+        url = f"https://graph.facebook.com/v23.0/{FACEBOOK_PAGE_ID}/promotable_posts"
+        params = {
+            "access_token": PAGE_ACCESS_TOKEN,
+            "fields": "scheduled_publish_time,is_published",
+            "limit": 100,
+        }
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        for post in data.get("data", []):
+            if post.get("is_published"):
+                continue
+            ts = post.get("scheduled_publish_time")
+            if ts is None:
+                continue
+            try:
+                scheduled_timestamps.add(int(ts))
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # 3) unpublished_posts (fallback)
+    try:
+        url = f"https://graph.facebook.com/v23.0/{FACEBOOK_PAGE_ID}/unpublished_posts"
+        params = {
+            "access_token": PAGE_ACCESS_TOKEN,
+            "fields": "scheduled_publish_time,is_published",
+            "limit": 100,
+        }
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        for post in data.get("data", []):
+            if post.get("is_published"):
+                continue
+            ts = post.get("scheduled_publish_time")
+            if ts is None:
+                continue
+            try:
+                scheduled_timestamps.add(int(ts))
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # 4) videos programmées
+    try:
+        url = f"https://graph.facebook.com/v23.0/{FACEBOOK_PAGE_ID}/videos"
+        params = {
+            "access_token": PAGE_ACCESS_TOKEN,
+            "fields": "scheduled_publish_time,unpublished_content_type",
+            "limit": 100,
+        }
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        for v in data.get("data", []):
+            ts = v.get("scheduled_publish_time")
+            if ts is None:
+                continue
+            try:
+                scheduled_timestamps.add(int(ts))
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    return scheduled_timestamps
+
+_FILENAME_RE = re.compile(r"^(?P<y>\d{4})-(?P<m>\d{2})-(?P<d>\d{2})-(?P<H>\d{2})h(?P<M>\d{2})\.txt$")
+
+def _parse_local_paris_dt_from_filename(filename: str) -> datetime | None:
+    """Extrait un datetime timezone-aware (Europe/Paris) depuis un nom de fichier.
+    Format attendu: YYYY-MM-DD-HHhMM.txt
+    """
+    m = _FILENAME_RE.match(filename)
+    if not m:
+        return None
+    try:
+        year = int(m.group("y"))
+        month = int(m.group("m"))
+        day = int(m.group("d"))
+        hour = int(m.group("H"))
+        minute = int(m.group("M"))
+        paris_tz = tz.gettz("Europe/Paris")
+        return datetime(year, month, day, hour, minute, tzinfo=paris_tz)
+    except Exception:
+        return None
+
+def _to_utc_epoch_seconds(local_dt: datetime) -> int:
+    """Convertit un datetime aware (Europe/Paris) vers un timestamp Unix UTC (secondes)."""
+    dt_utc = local_dt.astimezone(timezone.utc)
+    return int(dt_utc.timestamp())
+
+def _read_text(filepath: Path) -> str:
+    with open(filepath, "r", encoding="utf-8") as f:
+        return f.read().strip()
+
+def _schedule_facebook_post(message: str, scheduled_publish_time_utc: int) -> dict | None:
+    """Crée un post programmé sur la Page Facebook.
+    Retourne le JSON de réponse en cas de succès, None sinon.
+    """
+    if not PAGE_ACCESS_TOKEN or not FACEBOOK_PAGE_ID:
+        print("Erreur : PAGE_ACCESS_TOKEN ou FACEBOOK_PAGE_ID manquant(s)")
+        return None
+
+    url = f"https://graph.facebook.com/v23.0/{FACEBOOK_PAGE_ID}/feed"
+    payload = {
+        "access_token": PAGE_ACCESS_TOKEN,
+        "message": message,
+        "published": "false",
+        "scheduled_publish_time": scheduled_publish_time_utc,
+    }
+    try:
+        resp = requests.post(url, data=payload)
+        resp.raise_for_status()
+        return resp.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Erreur lors de la programmation du post ({scheduled_publish_time_utc}) : {e}")
+        try:
+            print(f"Détails : {resp.json()}")
+        except Exception:
+            print(f"Contenu brut : {resp.text if 'resp' in locals() else 'non dispo'}")
+        return None
+
+def sync_posts_from_directory(posts_dir: str | Path) -> None:
+    """Parcourt le dossier `posts` et programme les posts futurs manquants.
+    - Filtre: fichiers au format YYYY-MM-DD-HHhMM.txt
+    - Fuseau: Europe/Paris -> conversion en timestamp Unix UTC pour l'API Graph
+    - Ignore si un post (ou vidéo) est déjà programmé exactement à ce timestamp
+    """
+    base_dir = Path(posts_dir)
+    if not base_dir.exists() or not base_dir.is_dir():
+        print(f"Dossier introuvable: {base_dir}")
+        return
+
+    already_scheduled = _collect_scheduled_timestamps()
+    now_paris = datetime.now(tz.gettz("Europe/Paris"))
+
+    created_count = 0
+    skipped_existing = 0
+    skipped_past = 0
+    scanned = 0
+
+    for entry in sorted(base_dir.iterdir()):
+        if not entry.is_file():
+            continue
+        local_dt = _parse_local_paris_dt_from_filename(entry.name)
+        if local_dt is None:
+            continue
+        scanned += 1
+
+        if local_dt <= now_paris:
+            skipped_past += 1
+            continue
+
+        ts_utc = _to_utc_epoch_seconds(local_dt)
+
+        if ts_utc in already_scheduled:
+            skipped_existing += 1
+            continue
+
+        message = _read_text(entry)
+        if not message:
+            print(f"Fichier vide, ignoré: {entry.name}")
+            continue
+
+        res = _schedule_facebook_post(message, ts_utc)
+        if res is not None:
+            created_count += 1
+            already_scheduled.add(ts_utc)
+            print(f"✓ Programmé: {entry.name} -> {ts_utc}")
+        else:
+            print(f"✗ Échec programmation: {entry.name}")
+
+    print(
+        f"Terminé. Fichiers scannés: {scanned}, créés: {created_count}, déjà présents: {skipped_existing}, passés: {skipped_past}"
+    )
+
 if __name__ == "__main__":
     import sys
     
     # Si l'argument "--get-token" est passé, générer un nouveau token
     if len(sys.argv) > 1 and sys.argv[1] == "--get-token":
         get_long_lived_page_token()
-    else:
+    elif len(sys.argv) > 1 and sys.argv[1] == "--list":
         get_scheduled_posts()
+    else:
+        # Par défaut: synchroniser les fichiers du dossier posts -> posts programmés Facebook
+        script_dir = Path(__file__).resolve().parent
+        posts_path = script_dir / "posts"
+        sync_posts_from_directory(posts_path)
