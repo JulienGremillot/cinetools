@@ -1,2 +1,10 @@
 /.env
 /client_secrets.json
+/bandes_annonces/*
+/cartons/*
+/posters/*
+/videos_youtube/*
+/seances/*
+/films/*
+/posts/*
+/programmes/*

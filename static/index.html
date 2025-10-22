@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tableau de bord - Séances à venir</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root { --green:#16a34a; --red:#dc2626; --gray:#475569; --muted:#f1f5f9; --card:#ffffff; --chip:#e2e8f0; }
+      *{box-sizing:border-box}
+      html,body{margin:0;padding:0;background:#0f172a;color:#e2e8f0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+      a{color:#93c5fd}
+      .container{max-width:1100px;margin:0 auto;padding:24px}
+      h1{font-size:28px;margin:0 0 12px}
+      .subtitle{color:#94a3b8;margin-bottom:24px}
+      .week{margin-bottom:28px}
+      .week-title{font-size:20px;font-weight:700;margin:16px 0 10px}
+      .film-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+      .card{background:var(--card);color:#0f172a;border-radius:12px;overflow:hidden;border:1px solid #0b1220}
+      .poster{width:100%;height:360px;object-fit:cover;background:#0b1220}
+      .content{padding:12px 12px 14px}
+      .title{font-weight:700;margin:0 0 8px;font-size:16px}
+      .seances{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+      .chip{background:var(--chip);color:#0f172a;border-radius:999px;padding:4px 8px;font-size:12px}
+      .desc{font-size:13px;color:#334155;background:var(--muted);border-radius:8px;padding:8px;margin-top:8px;max-height:94px;overflow:auto}
+      .status{display:flex;gap:10px;align-items:center;margin-top:8px}
+      .dot{width:10px;height:10px;border-radius:999px;display:inline-block}
+      .dot.green{background:var(--green)}
+      .dot.red{background:var(--red)}
+      .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+      .right{display:flex;gap:8px;align-items:center}
+      .btn{display:inline-flex;align-items:center;gap:6px;border-radius:8px;border:1px solid #cbd5e1;padding:6px 10px;background:#fff;color:#0f172a;text-decoration:none;font-size:13px}
+      .btn:hover{background:#f8fafc}
+    </style>
+  </head>
+  <body>
+    <div id="app" class="container">
+      <h1>Tableau de bord — Séances à venir</h1>
+      <div class="subtitle">Cinéma Paradiso</div>
+
+      <template v-if="loading">
+        Chargement…
+      </template>
+      <template v-else>
+        <div v-if="weeks.length === 0">Aucune séance à venir.</div>
+        <div class="week" v-for="week in weeks" :key="week.week">
+          <div class="week-title">Semaine {{ week.week }}</div>
+          <div class="film-list">
+            <div class="card" v-for="film in week.films" :key="film.titre">
+              <img class="poster" :src="resolvePoster(film)" :alt="film.titre" />
+              <div class="content">
+                <div class="row">
+                  <div class="title">{{ film.titre }}</div>
+                  <div class="right">
+                    <a v-if="film.links && film.links.youtube" class="btn" :href="film.links.youtube" target="_blank" rel="noopener">YouTube</a>
+                  </div>
+                </div>
+                <div class="seances">
+                  <span class="chip" v-for="s in film.seances" :key="s">{{ fmtDate(s) }}</span>
+                </div>
+                <div class="status">
+                  <span title="Bande annonce" :class="['dot', film.status.bande_annonce ? 'green':'red']"></span>
+                  <span title="Carton" :class="['dot', film.status.carton ? 'green':'red']"></span>
+                  <span title="Fichier YouTube" :class="['dot', film.status.youtube_file ? 'green':'red']"></span>
+                  <span title="Envoyé YouTube" :class="['dot', film.status.youtube_sent ? 'green':'red']"></span>
+                </div>
+                <div class="desc" v-if="film.description">{{ film.description }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script>
+      const { createApp } = Vue;
+
+      createApp({
+        data() {
+          return { loading: true, weeks: [] };
+        },
+        methods: {
+          async loadData() {
+            this.loading = true;
+            try {
+              const res = await fetch('/api/seances');
+              this.weeks = await res.json();
+            } finally {
+              this.loading = false;
+            }
+          },
+          fmtDate(iso) {
+            try {
+              const d = new Date(iso);
+              return d.toLocaleString('fr-FR', { weekday: 'long', day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
+            } catch { return iso; }
+          },
+          resolvePoster(film) {
+            // Utilise file_poster absolu si accessible localement, sinon url_poster si disponible
+            const local = film.poster;
+            if (local && local.startsWith('C:\\')) {
+              // Accès direct aux chemins Windows n'est pas possible via HTTP — pas servi par Flask
+              // On préfère l'URL distante si fournie ; sinon placeholder
+            }
+            if (film.url_poster) return film.url_poster;
+            return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1200"><rect width="100%" height="100%" fill="#0b1220"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#94a3b8" font-family="Inter" font-size="24">Affiche indisponible</text></svg>`);
+          }
+        },
+        mounted() {
+          this.loadData();
+        }
+      }).mount('#app');
+    </script>
+  </body>
+  </html>
+
+
+
