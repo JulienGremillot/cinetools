@@ -8,6 +8,9 @@ import google.auth.transport.requests
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+import unicodedata
+import re
+import html as html_lib
 
 # Scopes nécessaires (upload de vidéos)
 SCOPES = [
@@ -17,6 +20,59 @@ SCOPES = [
 
 load_dotenv()
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+
+def _is_allowed_char_for_youtube(ch: str) -> bool:
+    """Filtre les caractères problématiques pour les champs texte YouTube.
+    - Autorise les retours à la ligne (\n)
+    - Supprime les caractères de contrôle (catégorie Unicode Cc) et les surrogates (Cs)
+    - Supprime les non-caractères Unicode (U+FDD0..U+FDEF, U+xxFFFE, U+xxFFFF)
+    """
+    if ch == "\n":
+        return True
+    cp = ord(ch)
+    cat = unicodedata.category(ch)
+    # Contrôle, Surrogates, Format, Private-use -> retirer
+    if cat in ("Cc", "Cs", "Cf", "Co"):
+        return False
+    if 0xFDD0 <= cp <= 0xFDEF:
+        return False
+    if (cp & 0xFFFF) in (0xFFFE, 0xFFFF):
+        return False
+    return True
+
+def _strip_html(text: str) -> str:
+    # Supprime les balises HTML rudimentaires
+    return re.sub(r"<[^>]+>", " ", text)
+
+def sanitize_youtube_text(text: str | None, max_length: int) -> str:
+    """Normalise, nettoie et tronque un texte pour l'API YouTube.
+    - Normalisation NFKC
+    - Uniformisation des sauts de ligne en \n
+    - Suppression des chars de contrôle et non-caractères
+    - Tronquage à max_length
+    """
+    if not text:
+        return ""
+    cleaned = unicodedata.normalize("NFKC", str(text))
+    # Décodage des entités HTML (ex: &nbsp;)
+    cleaned = html_lib.unescape(cleaned)
+    # Suppression des balises HTML éventuelles
+    cleaned = _strip_html(cleaned)
+    # Normalisation des fins de ligne et séparateurs spéciaux
+    cleaned = cleaned.replace("\r\n", "\n").replace("\r", "\n")
+    cleaned = cleaned.replace("\u2028", "\n").replace("\u2029", "\n")
+    # Remplacer NBSP et espaces typographiques par un espace normal
+    cleaned = cleaned.replace("\u00A0", " ")
+    cleaned = re.sub("[\u2000-\u200B\u202F\u205F\u3000]", " ", cleaned)
+    cleaned = "".join(ch for ch in cleaned if _is_allowed_char_for_youtube(ch))
+    # Réduction des espaces (conserve les \n)
+    cleaned = re.sub(r"[\t\f\v ]+", " ", cleaned)
+    # Nettoyage des espaces autour des sauts de ligne
+    cleaned = re.sub(r" *\n+ *", "\n", cleaned)
+    cleaned = cleaned.strip()
+    if len(cleaned) > max_length:
+        cleaned = cleaned[:max_length]
+    return cleaned
 
 def get_authenticated_service():
     flow = InstalledAppFlow.from_client_secrets_file("client_secrets.json", SCOPES)
@@ -133,10 +189,21 @@ def get_seance_files(base_dir="./seances"):
     return seance_files
 
 def upload_video(youtube, file, title, description, category="22", privacy="public"):
+    # Sécuriser titre/description pour éviter invalidDescription/invalidTitle
+    safe_title = sanitize_youtube_text(title, 100)
+    if not safe_title:
+        safe_title = os.path.basename(file)
+    safe_description = sanitize_youtube_text(description, 5000)
+
+    # Logs concis pour diagnostic
+    preview_title = (safe_title[:120] + ("..." if len(safe_title) > 120 else ""))
+    print(f"Titre (len={len(safe_title)}): {preview_title}")
+    print(f"Description (len={len(safe_description)})")
+
     request_body = {
         "snippet": {
-            "title": title,
-            "description": description,
+            "title": safe_title,
+            "description": safe_description,
             "categoryId": category
         },
         "status": {
@@ -180,7 +247,7 @@ def main():
                 if "file_youtube" in item and "url_youtube" not in item:
                     video_file = item["file_youtube"]
                     title = item.get("titre", os.path.basename(video_file))  # Utilise l'attribut "titre"
-                    description = item.get("description", "") # Utilise l'attribut "description"
+                    description = item.get("description", "")  # Utilise l'attribut "description"
                     category = item.get("category", "22")
                     privacy = "public" # Force la confidentialité à "public"
 
@@ -205,6 +272,9 @@ def main():
                         if "The user has exceeded the number of videos they may upload" in str(e):
                             print("Quota YouTube dépassé. Arrêt des uploads.")
                             quota_error_occurred = True
+                        if "invalidDescription" in str(e):
+                            # Informations de débogage additionnelles
+                            print(f"[DEBUG] Description invalide détectée. Longueur après nettoyage: {len(sanitize_youtube_text(description, 5000))}")
 
             if updated_data:
                 f.seek(0)
