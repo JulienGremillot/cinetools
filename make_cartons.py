@@ -392,8 +392,14 @@ def process_all_videos():
                 continue
 
             # Récupère le titre et les dates depuis seances/<semaine_dir>.json en se basant sur le fichier poster
-            seance_title, dates = _get_title_from_seance_by_poster(semaine_dir, os.path.basename(poster_path))
-            titre_final = seance_title if seance_title else video_base_name
+            result = _get_title_from_seance_by_poster(semaine_dir, os.path.basename(poster_path))
+            if result is not None:
+                seance_title, dates = result
+                titre_final = seance_title if seance_title else video_base_name
+            else:
+                seance_title = None
+                dates = None
+                titre_final = video_base_name
 
             if seance_title:
                 print(f"[OK] Poster associé: {video_base_name} -> {os.path.basename(poster_path)} ; titre séance: \"{seance_title}\"")
@@ -401,7 +407,7 @@ def process_all_videos():
                 print(f"[OK] Poster associé: {video_base_name} -> {os.path.basename(poster_path)} ; titre séance introuvable, on garde \"{video_base_name}\"")
 
             # La fonction retourne maintenant le chemin du carton généré
-            carton_png_path = make_carton_for_video(video_path, poster_path, titre_final, dates, semaine_dir)
+            carton_png_path = make_carton_for_video(video_path, poster_path, titre_final, dates or [], semaine_dir)
             processed = True
 
             # ... dans la boucle où vous traitez chaque bande-annonce et générez le carton:
@@ -414,7 +420,7 @@ def process_all_videos():
             # Après avoir déterminé ces chemins et généré le carton, ajoutez:
             # carton_png_path = os.path.join(PATH_CARTONS, clean_title(titre_final) + '.png')  # deduit le chemin du carton
             updates_for_json.append({
-                "titre": seance_title,
+                "titre": seance_title or titre_final,
                 "file_bandeannonce": str(Path(video_path).resolve()),
                 "file_carton": str(carton_png_path),
             })

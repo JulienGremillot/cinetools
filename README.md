@@ -6,7 +6,7 @@ Tools for automating my movie theater life
 - get_prog_from_distrib.py
 - get_prog_from_site.py
 - get_posters.py
-- get_bandes_annonces.py
+- get_bandes_annonces.py --browser-cookies firefox
 - make_cartons.py
 - make_videos_youtube.py
 - send_videos_youtube.py

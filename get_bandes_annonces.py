@@ -57,16 +57,41 @@ def search_trailer(title, allowed_channels=None):
     return None
 
 
-def download_video(url, title, output_path):
+def download_video(url, title, output_path, cookies_file=None, browser_cookies=None):
     os.makedirs(output_path, exist_ok=True)
     ydl_opts = {
         "format": "bestvideo+bestaudio/best",
         "outtmpl": os.path.join(output_path, f"{title}.%(ext)s"),
         "quiet": False,
-        "merge_output_format": "mp4"
+        "merge_output_format": "mp4",
+        # Configuration pour éviter la détection de bot
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "referer": "https://www.youtube.com/",
+        "sleep_interval": 1,  # Délai entre les requêtes
+        "max_sleep_interval": 5,
+        # Options pour contourner les restrictions
+        "extractor_retries": 3,
+        "fragment_retries": 3,
+        "retries": 3,
+        "no_check_certificate": True,
     }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+    
+    # Ajouter les cookies si fournis
+    if cookies_file and os.path.exists(cookies_file):
+        ydl_opts["cookiefile"] = cookies_file
+        print(f"[!] Utilisation du fichier cookies: {cookies_file}")
+    elif browser_cookies:
+        ydl_opts["cookiesfrombrowser"] = (browser_cookies, None, None, None)
+        print(f"[!] Utilisation des cookies du navigateur: {browser_cookies}")
+    
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+    except yt_dlp.utils.DownloadError as e:
+        print(f"[✗] Erreur lors du téléchargement de {title}: {e}")
+        print("[!] Essayez d'utiliser --cookies-from-browser chrome ou --cookies cookies.txt")
+        return False
+    return True
 
 
 def load_titles(path):
@@ -113,7 +138,7 @@ def main(args):
             else:
                 url = search_trailer(title, allowed_channels)
                 if url:
-                    download_video(url, title, output_path)
+                    download_video(url, title, output_path, args.cookies, args.browser_cookies)
 
         # puis on passe à la semaine suivante
         date_obj += timedelta(weeks=1)
@@ -124,6 +149,10 @@ if __name__ == "__main__":
     parser.add_argument("--channels", default=CHANNELS,
                         help="Fichier texte contenant les noms de chaînes autorisées (1 par ligne)")
     parser.add_argument("--output", required=False, help="Dossier de téléchargement")
+    parser.add_argument("--cookies", required=False, help="Fichier cookies pour l'authentification YouTube")
+    parser.add_argument("--browser-cookies", required=False, 
+                        choices=["chrome", "firefox", "safari", "edge"],
+                        help="Utiliser les cookies du navigateur (chrome, firefox, safari, edge)")
 
     args = parser.parse_args()
     main(args)
